@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Z-Score Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #191919;
+    --bg2:     #1e1e1e;
+    --bg3:     #242424;
+    --border:  #2a2a2a;
+    --blue:    #4fa3e3;
+    --blue-dim:#2d6fa3;
+    --red:     #e05f5f;
+    --yellow:  #d4aa50;
+    --green:   #50b07a;
+    --text:    #ffffff;
+    --text-dim:#c0c0c0;
+    --text-muted: #777;
+    --accent:  #5bb8f5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Roboto', sans-serif;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: radial-gradient(circle, rgba(79,163,227,0.06) 1px, transparent 1px);
+    background-size: 36px 36px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ──────────────────────────────
+     HERO
+  ────────────────────────────── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 52px 20px 88px;
+    gap: 28px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    color: var(--blue);
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+
+  /* formula */
+  .formula-hero { text-align: center; }
+  .formula-tag {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .formula-eq {
+    font-size: clamp(38px, 9vw, 78px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+
+  .var-z     { color: var(--blue); }
+  .var-x     { color: var(--yellow); }
+  .var-mu    { color: var(--red); }
+  .var-sigma { color: var(--green); }
+
+  /* result cards */
+  .results-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .result-card {
+    flex: 1 1 170px;
+    min-width: 130px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card.primary {
+    border-color: var(--blue-dim);
+    background: linear-gradient(140deg, #162030 0%, var(--bg2) 100%);
+  }
+
+  .result-card.primary::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--blue), transparent);
+  }
+
+  .result-label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .result-value {
+    font-size: clamp(22px, 5vw, 30px);
+    font-weight: 900;
+    line-height: 1;
+    color: var(--text);
+  }
+  .result-card.primary .result-value { color: var(--accent); }
+
+  .result-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  /* sliders */
+  .sliders-wrap {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .slider-group { display: flex; flex-direction: column; gap: 5px; }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .slider-name {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  .slider-symbol {
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .s-x  .slider-symbol { color: var(--yellow); }
+  .s-mu .slider-symbol { color: var(--red); }
+  .s-sg .slider-symbol { color: var(--green); }
+
+  /* number input replacing static span */
+  .slider-num {
+    font-size: 15px;
+    font-weight: 600;
+    width: 58px;
+    text-align: right;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    outline: none;
+    padding: 2px 0;
+    transition: border-color .2s;
+    font-family: 'Roboto', sans-serif;
+    -moz-appearance: textfield;
+  }
+  .slider-num::-webkit-outer-spin-button,
+  .slider-num::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .slider-num:focus { border-bottom-color: var(--blue); }
+
+  .s-x  .slider-num { color: var(--yellow); }
+  .s-mu .slider-num { color: var(--red); }
+  .s-sg .slider-num { color: var(--green); }
+
+  .slider-track { height: 26px; display: flex; align-items: center; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%; height: 3px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .s-x  input[type="range"] { background: linear-gradient(90deg, var(--yellow) var(--pct,50%), var(--border) var(--pct,50%)); }
+  .s-mu input[type="range"] { background: linear-gradient(90deg, var(--red)    var(--pct,50%), var(--border) var(--pct,50%)); }
+  .s-sg input[type="range"] { background: linear-gradient(90deg, var(--green)  var(--pct,50%), var(--border) var(--pct,50%)); }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid;
+    cursor: pointer;
+    transition: transform .15s;
+  }
+  .s-x  input[type="range"]::-webkit-slider-thumb { border-color: var(--yellow); }
+  .s-mu input[type="range"]::-webkit-slider-thumb { border-color: var(--red); }
+  .s-sg input[type="range"]::-webkit-slider-thumb { border-color: var(--green); }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--blue); cursor: pointer;
+  }
+
+  /* interpretation */
+  .interpretation {
+    width: 100%;
+    max-width: 520px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .interp-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--blue);
+    box-shadow: 0 0 7px var(--blue);
+    transition: background .3s, box-shadow .3s;
+  }
+  .interp-text { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+  .interp-text strong { color: var(--text); font-weight: 600; }
+
+  /* scroll hint arrow */
+  .scroll-hint {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+    opacity: 0.85;
+    transition: opacity .25s;
+    color: inherit;
+  }
+  .scroll-hint:hover { opacity: 1; }
+
+  .scroll-hint-text {
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #ffffff;
+    font-weight: 500;
+  }
+
+  .scroll-arrow-ring {
+    width: 32px; height: 32px;
+    border: 1.5px solid rgba(255,255,255,0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: bob 2.2s ease-in-out infinite;
+  }
+
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(6px); }
+  }
+
+  /* ──────────────────────────────
+     CHART SECTION
+  ────────────────────────────── */
+  #chart-section {
+    position: relative;
+    z-index: 1;
+    min-height: 100dvh;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 52px 20px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .chart-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chart-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-dim);
+  }
+  .chart-title span { color: var(--text); }
+
+  .chart-stats { display: flex; gap: 20px; }
+  .stat-label { font-size: 11px; color: var(--text-muted); letter-spacing: .1em; text-transform: uppercase; }
+  .stat-val   { font-size: 16px; font-weight: 600; color: var(--blue); margin-top: 2px; }
+
+  .chart-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 12px 10px;
+    position: relative;
+    overflow: hidden;
+    height: min(58vh, 420px);
+    flex-shrink: 0;
+  }
+  .chart-wrap::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center bottom, rgba(79,163,227,0.05), transparent 65%);
+    pointer-events: none;
+  }
+  .chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+  .axis-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 4px;
+  }
+  .axis-labels span { font-size: 11px; color: var(--text-muted); }
+
+  .phi-bar-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .phi-bar-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .phi-bar-label  { font-size: 13px; color: var(--text-muted); }
+  .phi-bar-pct    { font-size: 15px; font-weight: 600; color: var(--accent); }
+  .phi-bar-track  { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .phi-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue-dim), var(--accent));
+    border-radius: 3px;
+    transition: width .25s cubic-bezier(.4,0,.2,1);
+    position: relative;
+  }
+  .phi-bar-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0; width: 5px;
+    background: #fff; opacity: .4; border-radius: 3px;
+  }
+
+  .scroll-up-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .scroll-up-row a {
+    display: flex; align-items: center; gap: 6px;
+    text-decoration: none;
+    font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: .5;
+    transition: opacity .2s;
+  }
+  .scroll-up-row a:hover { opacity: .9; }
+
+  /* mobile */
+  @media (max-width: 580px) {
+    .hero { padding: 44px 16px 80px; gap: 22px; }
+    .results-row { gap: 8px; }
+    .result-card { padding: 10px 12px; }
+    .sliders-wrap { gap: 14px; }
+    #chart-section { padding: 40px 14px 40px; gap: 12px; }
+    .chart-wrap { height: min(50vh, 300px); }
+    .axis-labels span:nth-child(even) { display: none; }
+    .chart-section-header { flex-direction: column; align-items: flex-start; }
+    .chart-stats { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════ HERO ════════════ -->
+<section class="hero" id="top">
+
+  <p class="eyebrow">Estadística · Distribución Normal</p>
+
+  <div class="formula-hero">
+    <div class="formula-tag">Fórmula</div>
+    <div class="formula-eq">
+      <span class="var-z">z</span>&thinsp;=&thinsp;(<span class="var-x">x</span>&thinsp;&minus;&thinsp;<span class="var-mu">μ</span>)&thinsp;/&thinsp;<span class="var-sigma">σ</span>
+    </div>
+  </div>
+
+  <div class="results-row">
+    <div class="result-card primary">
+      <div class="result-label">z · Puntuación</div>
+      <div class="result-value" id="zVal">0.0000</div>
+      <div class="result-sub">desviaciones std</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">Φ(z) · Área acumulada</div>
+      <div class="result-value" id="phiVal">50.00%</div>
+      <div class="result-sub">probabilidad</div>
+    </div>
+  </div>
+
+  <div class="sliders-wrap">
+    <div class="slider-group s-x">
+      <div class="slider-header">
+        <div class="slider-name"><span class="slider-symbol">x</span><span>Valor observado</span></div>
+        <input type="number" class="slider-num" id="xDisplay" value="50" min="0" max="100" step="0.5">
+      </div>
+      <div class="slider-track">
+        <input type="range" id="xSlider" min="0" max="100" value="50" step="0.5">
+      </div>
+    </div>
+
+    <div class="slider-group s-mu">
+      <div class="slider-header">
+        <div class="slider-name"><span class="slider-symbol">μ</span><span>Media</span></div>
+        <input type="number" class="slider-num" id="muDisplay" value="50" min="0" max="100" step="0.5">
+      </div>
+      <div class="slider-track">
+        <input type="range" id="muSlider" min="0" max="100" value="50" step="0.5">
+      </div>
+    </div>
+
+    <div class="slider-group s-sg">
+      <div class="slider-header">
+        <div class="slider-name"><span class="slider-symbol">σ</span><span>Desviación estándar</span></div>
+        <input type="number" class="slider-num" id="sigmaDisplay" value="10" min="1" max="30" step="0.5">
+      </div>
+      <div class="slider-track">
+        <input type="range" id="sigmaSlider" min="1" max="30" value="10" step="0.5">
+      </div>
+    </div>
+  </div>
+
+  <div class="interpretation">
+    <div class="interp-dot" id="interpDot"></div>
+    <div class="interp-text" id="interpText">
+      El valor <strong>x</strong> está en la <strong>media</strong> de la distribución.
+    </div>
+  </div>
+
+  <a class="scroll-hint" href="#chart-section" aria-label="Ver gráfica">
+    <span class="scroll-hint-text">Ver gráfica</span>
+    <div class="scroll-arrow-ring">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M2 4.5L6 8.5L10 4.5" stroke="#4fa3e3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </a>
+
+</section>
+
+<!-- ════════════ CHART ════════════ -->
+<section id="chart-section">
+
+  <div class="chart-section-header">
+    <div class="chart-title">Distribución <span>Normal Estándar</span></div>
+    <div class="chart-stats">
+      <div>
+        <div class="stat-label">Cola izquierda</div>
+        <div class="stat-val" id="leftArea">50.00%</div>
+      </div>
+      <div>
+        <div class="stat-label">Cola derecha</div>
+        <div class="stat-val" id="rightArea">50.00%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="normalChart"></canvas>
+  </div>
+
+  <div class="axis-labels">
+    <span>z=−4</span><span>z=−3</span><span>z=−2</span><span>z=−1</span>
+    <span>z=0</span><span>z=1</span><span>z=2</span><span>z=3</span><span>z=4</span>
+  </div>
+
+  <div class="phi-bar-wrap">
+    <div class="phi-bar-header">
+      <span class="phi-bar-label">Φ(z) — Probabilidad acumulada hasta z</span>
+      <span class="phi-bar-pct" id="phiBarPct">50.00%</span>
+    </div>
+    <div class="phi-bar-track">
+      <div class="phi-bar-fill" id="phiBarFill" style="width:50%"></div>
+    </div>
+  </div>
+
+  <div class="scroll-up-row">
+    <a href="#top">
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+        <path d="M2 8L6 4L10 8" stroke="#4fa3e3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Volver arriba
+    </a>
+  </div>
+
+</section>
+
+<script>
+function normalCDF(z) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989422820 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.7814779 + t * (-1.8212560 + t * 1.3302744))));
+  return z > 0 ? 1 - p : p;
+}
+function normalPDF(z) { return Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI); }
+
+const N = 300, zMin = -4, zMax = 4;
+const zPoints   = Array.from({length: N}, (_, i) => zMin + (zMax - zMin) * i / (N - 1));
+const pdfPoints = zPoints.map(normalPDF);
+
+const ctx = document.getElementById('normalChart').getContext('2d');
+
+function buildDatasets(z) {
+  const zC = Math.max(zMin, Math.min(zMax, z));
+  return [
+    {
+      data: zPoints.map((zp, i) => zp <= zC ? pdfPoints[i] : 0),
+      fill: true,
+      backgroundColor: 'rgba(79,163,227,0.15)',
+      borderColor: 'transparent',
+      pointRadius: 0, tension: 0.4,
+    },
+    {
+      data: pdfPoints,
+      fill: false,
+      borderColor: '#4fa3e3',
+      borderWidth: 2.5,
+      pointRadius: 0, tension: 0.4,
+    }
+  ];
+}
+
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: { labels: zPoints, datasets: buildDatasets(0) },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 60 },
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: {
+      x: {
+        type: 'linear', min: zMin, max: zMax,
+        grid: { color: 'rgba(255,255,255,0.035)' },
+        ticks: { color: '#666', font: { family: 'Roboto', size: 10 }, stepSize: 1, callback: v => Number.isInteger(v) ? v : '' }
+      },
+      y: {
+        min: 0, max: 0.42,
+        grid: { color: 'rgba(255,255,255,0.035)' },
+        ticks: { color: '#666', font: { family: 'Roboto', size: 10 }, maxTicksLimit: 5, callback: v => v.toFixed(2) }
+      }
+    }
+  }
+});
+
+Chart.register({
+  id: 'zLine',
+  afterDraw(ch) {
+    const xS = ch.scales.x, yS = ch.scales.y;
+    const xV = +document.getElementById('xSlider').value;
+    const mV = +document.getElementById('muSlider').value;
+    const sV = +document.getElementById('sigmaSlider').value;
+    const z  = (xV - mV) / sV;
+    const zC = Math.max(zMin, Math.min(zMax, z));
+
+    const px  = xS.getPixelForValue(zC);
+    const pyB = yS.getPixelForValue(0);
+    const pyT = yS.getPixelForValue(normalPDF(zC));
+    const c2  = ch.ctx;
+
+    c2.save();
+    c2.beginPath();
+    c2.moveTo(px, pyB);
+    c2.lineTo(px, pyT);
+    c2.strokeStyle = '#5bb8f5';
+    c2.lineWidth = 1.8;
+    c2.setLineDash([5, 4]);
+    c2.shadowColor = '#4fa3e3';
+    c2.shadowBlur = 6;
+    c2.stroke();
+
+    c2.beginPath();
+    c2.arc(px, pyT, 4, 0, Math.PI * 2);
+    c2.fillStyle = '#5bb8f5';
+    c2.shadowBlur = 10;
+    c2.fill();
+
+    c2.setLineDash([]);
+    c2.shadowBlur = 0;
+    c2.font = '500 11px Roboto, sans-serif';
+    c2.fillStyle = '#5bb8f5';
+    c2.textAlign = 'center';
+    const lx = px + (zC > 2.5 ? -36 : 36);
+    c2.fillText('z=' + z.toFixed(2), lx, pyT - 10);
+    c2.restore();
+  }
+});
+
+function getInterp(z) {
+  const a = Math.abs(z);
+  if (a < 0.01) return { text: 'El valor <strong>x</strong> está exactamente en la <strong>media</strong> de la distribución.', color: '#4fa3e3' };
+  if (a <= 1)   return { text: `A <strong>${a.toFixed(2)}σ</strong> de la media — dentro del <strong>68%</strong> central.`,        color: '#50b07a' };
+  if (a <= 2)   return { text: `A <strong>${a.toFixed(2)}σ</strong> de la media — valor <strong>poco común</strong> (95%).`,         color: '#d4aa50' };
+  if (a <= 3)   return { text: `A <strong>${a.toFixed(2)}σ</strong> — valor <strong>inusual</strong>, dentro del 99.7%.`,            color: '#e08840' };
+  return           { text: `A <strong>${a.toFixed(2)}σ</strong> — valor <strong>extremo</strong>, fuera del 99.7%.`,                 color: '#e05f5f' };
+}
+
+function setGrad(el) {
+  el.style.setProperty('--pct', ((+el.value - +el.min) / (+el.max - +el.min) * 100).toFixed(1) + '%');
+}
+
+function update() {
+  const xV = +document.getElementById('xSlider').value;
+  const mV = +document.getElementById('muSlider').value;
+  const sV = +document.getElementById('sigmaSlider').value;
+  const z  = (xV - mV) / sV;
+  const phi = normalCDF(z);
+  const pct = (phi * 100).toFixed(2);
+
+  document.getElementById('zVal').textContent         = z.toFixed(4);
+  document.getElementById('phiVal').textContent       = pct + '%';
+  document.getElementById('xDisplay').value           = xV;
+  document.getElementById('muDisplay').value          = mV;
+  document.getElementById('sigmaDisplay').value       = sV;
+  document.getElementById('leftArea').textContent     = pct + '%';
+  document.getElementById('rightArea').textContent    = (100 - phi * 100).toFixed(2) + '%';
+  document.getElementById('phiBarFill').style.width   = pct + '%';
+  document.getElementById('phiBarPct').textContent    = pct + '%';
+
+  const interp = getInterp(z);
+  document.getElementById('interpText').innerHTML       = interp.text;
+  document.getElementById('interpDot').style.background = interp.color;
+  document.getElementById('interpDot').style.boxShadow  = `0 0 7px ${interp.color}`;
+
+  ['xSlider','muSlider','sigmaSlider'].forEach(id => setGrad(document.getElementById(id)));
+  chart.data.datasets = buildDatasets(z);
+  chart.update('none');
+}
+
+// Slider → number input
+['xSlider','muSlider','sigmaSlider'].forEach(id => {
+  const el = document.getElementById(id);
+  setGrad(el);
+  el.addEventListener('input', update);
+});
+
+// Number input → slider
+const numMap = { xDisplay: 'xSlider', muDisplay: 'muSlider', sigmaDisplay: 'sigmaSlider' };
+Object.entries(numMap).forEach(([numId, sliderId]) => {
+  document.getElementById(numId).addEventListener('input', function() {
+    const slider = document.getElementById(sliderId);
+    const min = +slider.min, max = +slider.max;
+    let val = parseFloat(this.value);
+    if (isNaN(val)) return;
+    val = Math.max(min, Math.min(max, val));
+    slider.value = val;
+    setGrad(slider);
+    update();
+  });
+});
+update();
+</script>
+</body>
+</html>
