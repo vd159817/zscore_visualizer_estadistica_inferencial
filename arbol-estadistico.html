@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Árbol de Decisión Estadístico</title>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       VARIABLES GLOBALES Y RESET
+    ============================================================ */
+    :root {
+      --bg:          #f7f6f2;
+      --surface:     #ffffff;
+      --surface-2:   #f0ede6;
+      --surface-3:   #e8e4dc;
+      --ink:         #1c1b18;
+      --ink-2:       #4a4944;
+      --ink-3:       #8a8880;
+      --accent:      #1a4a3a;
+      --accent-2:    #c8ddd7;
+      --accent-3:    #e8f2ef;
+      --warn:        #7a3a1a;
+      --warn-light:  #f5ece6;
+      --code-bg:     #1e1e1e;
+      --code-text:   #d4d4d4;
+      --border:      #dedad2;
+      --radius-sm:   8px;
+      --radius:      14px;
+      --radius-lg:   20px;
+      --shadow:      0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06);
+      --shadow-lg:   0 4px 8px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.1);
+      --t:           0.32s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 100px;
+    }
+
+    /* ============================================================
+       HEADER
+    ============================================================ */
+    .site-header {
+      text-align: center;
+      margin-bottom: 52px;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    .eyebrow::before, .eyebrow::after {
+      content: '';
+      width: 28px;
+      height: 1px;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    .site-header h1 {
+      font-family: 'Libre Baskerville', serif;
+      font-size: clamp(30px, 5.5vw, 52px);
+      font-weight: 700;
+      line-height: 1.12;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+
+    .site-header h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .site-header p {
+      margin-top: 14px;
+      color: var(--ink-2);
+      font-size: 15px;
+      font-weight: 300;
+      max-width: 440px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.65;
+    }
+
+    /* ============================================================
+       TOOLBAR (progreso + reinicio)
+    ============================================================ */
+    .toolbar {
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      animation: fadeDown 0.6s 0.1s ease both;
+    }
+
+    .progress-wrap { flex: 1; }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--ink-3);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .progress-bar {
+      height: 2px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* Botón reinicio siempre visible */
+    .reset-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 7px 14px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink-2);
+      cursor: pointer;
+      transition: border-color var(--t), color var(--t), background var(--t);
+      white-space: nowrap;
+    }
+
+    .reset-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-3);
+    }
+
+    .reset-btn svg { transition: transform 0.5s ease; }
+    .reset-btn:hover svg { transform: rotate(-180deg); }
+
+    /* ============================================================
+       BREADCRUMB
+    ============================================================ */
+    .breadcrumb {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 24px;
+      max-width: 620px;
+      width: 100%;
+      min-height: 24px;
+    }
+
+    .crumb {
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 3px 11px;
+      color: var(--ink-3);
+      animation: popIn 0.25s ease both;
+    }
+
+    .crumb.last { border-color: var(--accent); color: var(--accent); background: var(--accent-3); }
+
+    /* ============================================================
+       PASO / PREGUNTA
+    ============================================================ */
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 44px 44px 40px;
+      width: 100%;
+      max-width: 620px;
+      animation: slideUp 0.38s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    .step-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .step-question {
+      font-family: 'Libre Baskerville', serif;
+      font-size: clamp(19px, 3vw, 26px);
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+
+    .step-hint {
+      font-size: 13px;
+      color: var(--ink-3);
+      font-weight: 300;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    /* ============================================================
+       OPCIONES
+    ============================================================ */
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .opt-btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      cursor: pointer;
+      text-align: left;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      color: var(--ink);
+      width: 100%;
+      transition: border-color var(--t), background var(--t), transform var(--t), box-shadow var(--t);
+    }
+
+    .opt-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-3);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(26,74,58,0.1);
+    }
+
+    .opt-btn:active { transform: translateY(0); }
+
+    .opt-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 18px;
+      transition: border-color var(--t);
+    }
+
+    .opt-btn:hover .opt-icon { border-color: var(--accent); }
+
+    .opt-content strong {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 2px;
+      font-size: 14px;
+    }
+
+    .opt-content small {
+      font-size: 12px;
+      color: var(--ink-3);
+      font-weight: 300;
+    }
+
+    /* ============================================================
+       RESULTADO: TARJETA PRINCIPAL
+    ============================================================ */
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 680px;
+      overflow: hidden;
+      animation: slideUp 0.42s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    /* Cabecera del resultado */
+    .result-hero {
+      background: var(--accent);
+      padding: 36px 40px 32px;
+      color: white;
+    }
+
+    .result-hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 99px;
+      padding: 4px 13px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .result-hero-badge::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #6fcfb0;
+    }
+
+    .result-hero h2 {
+      font-family: 'Libre Baskerville', serif;
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .result-hero p {
+      font-size: 14px;
+      font-weight: 300;
+      line-height: 1.65;
+      opacity: 0.88;
+      max-width: 520px;
+    }
+
+    /* Fórmula en hero */
+    .result-formula {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: rgba(255,255,255,0.9);
+      display: inline-block;
+    }
+
+    /* Cuerpo del resultado */
+    .result-body {
+      padding: 0 40px 36px;
+    }
+
+    /* ============================================================
+       SECCIONES ACORDEÓN
+    ============================================================ */
+    .accordion {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .accordion:last-child { border-bottom: none; }
+
+    .accordion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0;
+      cursor: pointer;
+      user-select: none;
+      gap: 12px;
+    }
+
+    .accordion-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .accordion-icon-wrap {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 15px;
+    }
+
+    .accordion-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    .accordion-chevron {
+      flex-shrink: 0;
+      transition: transform var(--t);
+      color: var(--ink-3);
+    }
+
+    .accordion.open .accordion-chevron { transform: rotate(180deg); }
+
+    .accordion-body {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), padding 0.3s ease;
+    }
+
+    .accordion.open .accordion-body {
+      max-height: 2000px;
+    }
+
+    .accordion-inner {
+      padding-bottom: 22px;
+    }
+
+    /* ============================================================
+       CONTENIDO DE LAS SECCIONES
+    ============================================================ */
+    .prose {
+      font-size: 14px;
+      color: var(--ink-2);
+      line-height: 1.72;
+      font-weight: 300;
+    }
+
+    .prose strong { color: var(--ink); font-weight: 500; }
+
+    /* Tarjeta "cuándo NO" */
+    .warn-box {
+      background: var(--warn-light);
+      border: 1px solid rgba(122,58,26,0.15);
+      border-left: 3px solid var(--warn);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--warn);
+      line-height: 1.6;
+      margin-top: 4px;
+    }
+
+    /* Lista de supuestos */
+    .assumption-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .assumption-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .assumption-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent-3);
+      border: 1.5px solid var(--accent-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .assumption-text { font-size: 13px; color: var(--ink-2); line-height: 1.55; font-weight: 300; }
+    .assumption-text strong { color: var(--ink); font-weight: 500; }
+
+    /* Ejemplo práctico */
+    .example-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      margin-top: 4px;
+    }
+
+    .example-box p { font-size: 13px; color: var(--ink-2); line-height: 1.65; font-weight: 300; }
+    .example-box strong { color: var(--ink); font-weight: 500; }
+
+    /* Interpretación */
+    .interp-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 480px) { .interp-grid { grid-template-columns: 1fr; } }
+
+    .interp-item {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 14px;
+    }
+
+    .interp-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 5px;
+    }
+
+    .interp-value { font-size: 13px; color: var(--ink); line-height: 1.5; font-weight: 300; }
+
+    /* Bloque de código Python */
+    .code-block {
+      background: var(--code-bg);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      margin-top: 4px;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .code-lang {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .code-block pre {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--code-text);
+      white-space: pre;
+    }
+
+    /* Colores de sintaxis básicos */
+    .kw  { color: #569cd6; }  /* keywords */
+    .fn  { color: #dcdcaa; }  /* functions */
+    .str { color: #ce9178; }  /* strings */
+    .cm  { color: #6a9955; }  /* comments */
+    .nm  { color: #b5cea8; }  /* numbers */
+    .im  { color: #c586c0; }  /* import */
+
+    /* ============================================================
+       DIVISOR EN RESULTADO
+    ============================================================ */
+    .result-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 40px;
+    }
+
+    /* ============================================================
+       FOOTER DEL RESULTADO
+    ============================================================ */
+    .result-footer {
+      padding: 24px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--surface-2);
+    }
+
+    .result-footer p {
+      font-size: 12px;
+      color: var(--ink-3);
+      font-weight: 300;
+    }
+
+    .restart-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--ink);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 10px 20px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--t), transform var(--t);
+    }
+
+    .restart-cta:hover { background: var(--accent); transform: translateY(-1px); }
+    .restart-cta svg { transition: transform 0.45s ease; }
+    .restart-cta:hover svg { transform: rotate(-180deg); }
+
+    /* ============================================================
+       ANIMACIONES
+    ============================================================ */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.88); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (max-width: 600px) {
+      body { padding: 28px 14px 80px; }
+      .step-card { padding: 28px 22px 26px; }
+      .result-hero { padding: 28px 22px 26px; }
+      .result-body { padding: 0 22px 28px; }
+      .result-divider { margin: 0 22px; }
+      .result-footer { padding: 20px 22px; }
+    }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    .site-footer {
+      margin-top: 56px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--ink-3);
+      font-weight: 300;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       CABECERA
+  ============================================================ -->
+  <header class="site-header">
+    <div class="eyebrow">Metodología de Investigación</div>
+    <h1>Árbol de Decisión<br/><em>Estadístico</em></h1>
+    <p>Selecciona la prueba estadística correcta para tu análisis, paso a paso, con explicaciones completas.</p>
+  </header>
+
+  <!-- ============================================================
+       BARRA DE PROGRESO + BOTÓN REINICIO
+  ============================================================ -->
+  <div class="toolbar">
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span id="progressLabel">Inicio</span>
+        <span id="progressPct">0 %</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+    <button class="reset-btn" onclick="restart()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"></polyline>
+        <path d="M3.51 15a9 9 0 1 0 .49-3.51"></path>
+      </svg>
+      Reiniciar
+    </button>
+  </div>
+
+  <!-- ============================================================
+       HISTORIAL DE SELECCIONES
+  ============================================================ -->
+  <div class="breadcrumb" id="breadcrumb"></div>
+
+  <!-- ============================================================
+       CONTENEDOR PRINCIPAL
+  ============================================================ -->
+  <div id="app"></div>
+
+  <!-- ============================================================
+       PIE DE PÁGINA
+  ============================================================ -->
+  <footer class="site-footer">
+    Árbol de decisión estadístico · Con fines educativos<br/>
+    Los ejemplos de código usan Python con scipy, statsmodels y pandas
+  </footer>
+
+  <!-- ============================================================
+       JAVASCRIPT
+  ============================================================ -->
+  <script>
+  /* ============================================================
+     SECCIÓN 1: BASE DE DATOS DE PRUEBAS ESTADÍSTICAS
+     Cada entrada contiene todos los campos para la tarjeta resultado.
+  ============================================================ */
+  const TESTS = {
+
+    /* ── t de Student independiente ── */
+    t_student: {
+      name: "t de Student para muestras independientes",
+      desc: "Compara las medias de dos grupos independientes para determinar si la diferencia observada es estadísticamente significativa o producto del azar.",
+      formula: "t = (x̄₁ − x̄₂) / √(s²p · (1/n₁ + 1/n₂))",
+      cuando: "Cuando tienes exactamente dos grupos distintos (control vs. experimental, hombres vs. mujeres) y mides una variable continua como peso, tiempo, puntuación o concentración.",
+      cuando_no: "No usar si los grupos no son independientes (usa <strong>t pareada</strong>), si hay más de dos grupos (usa <strong>ANOVA</strong>), si la variable dependiente es categórica (usa <strong>Chi-cuadrado</strong>), o si los datos son claramente no normales con muestras pequeñas (usa <strong>Mann-Whitney</strong>).",
+      supuestos: [
+        { label: "Independencia", text: "Las observaciones de un grupo no influyen en el otro. Cada sujeto debe pertenecer solo a un grupo." },
+        { label: "Normalidad", text: "La variable dependiente sigue una distribución normal en cada grupo. Con n > 30 por grupo, el TCL hace la prueba robusta." },
+        { label: "Homocedasticidad", text: "Las varianzas de ambos grupos son iguales. Si no, usar la versión de Welch (por defecto en muchos programas)." },
+        { label: "Variable continua", text: "La variable dependiente debe ser de escala de intervalo o razón (no categorías ni rangos puros)." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Un investigador compara el nivel de colesterol (mg/dL) entre pacientes que recibieron un nuevo fármaco (n=25) versus placebo (n=25). Desea saber si el fármaco reduce el colesterol de forma significativa.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Diferencia estadísticamente significativa. Se rechaza H₀ de igualdad de medias." },
+        { label: "p ≥ 0.05", val: "Sin evidencia suficiente para afirmar diferencia entre grupos." },
+        { label: "t > 0", val: "La media del grupo 1 es mayor que la del grupo 2." },
+        { label: "IC 95 %", val: "Si el intervalo de confianza de la diferencia no contiene 0, hay diferencia significativa." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+<span class="im">import</span> pandas <span class="kw">as</span> pd
+
+<span class="cm"># Datos de ejemplo</span>
+grupo_a = [<span class="nm">210</span>, <span class="nm">215</span>, <span class="nm">198</span>, <span class="nm">220</span>, <span class="nm">205</span>]
+grupo_b = [<span class="nm">190</span>, <span class="nm">185</span>, <span class="nm">192</span>, <span class="nm">188</span>, <span class="nm">195</span>]
+
+<span class="cm"># t de Student con varianzas iguales</span>
+t_stat, p_val = stats.<span class="fn">ttest_ind</span>(grupo_a, grupo_b, equal_var=<span class="kw">True</span>)
+
+<span class="cm"># Varianzas desiguales (Welch) → equal_var=False</span>
+<span class="fn">print</span>(<span class="str">f"t = {t_stat:.3f}, p = {p_val:.4f}"</span>)
+
+<span class="cm"># Tamaño del efecto (Cohen's d)</span>
+<span class="im">import</span> numpy <span class="kw">as</span> np
+d = (np.<span class="fn">mean</span>(grupo_a) - np.<span class="fn">mean</span>(grupo_b)) / np.<span class="fn">std</span>(grupo_a + grupo_b)
+<span class="fn">print</span>(<span class="str">f"Cohen's d = {d:.3f}"</span>)`
+    },
+
+    /* ── Mann-Whitney ── */
+    mann_whitney: {
+      name: "Prueba U de Mann-Whitney",
+      desc: "Alternativa no paramétrica a la t de Student. Compara las distribuciones de dos grupos independientes a través de sus rangos, sin asumir normalidad.",
+      formula: "U = n₁·n₂ + n₁(n₁+1)/2 − R₁",
+      cuando: "Cuando los datos no siguen distribución normal, son ordinales (escalas Likert), contienen valores atípicos extremos, o las muestras son muy pequeñas (n < 15).",
+      cuando_no: "No es la mejor opción si los datos sí son normales (pierde potencia frente a la t de Student). Tampoco si hay más de dos grupos (usa Kruskal-Wallis) o medidas repetidas (usa Wilcoxon).",
+      supuestos: [
+        { label: "Independencia", text: "Las observaciones de un grupo no influyen en el otro." },
+        { label: "Escala ordinal", text: "Los datos deben poder ordenarse de menor a mayor (escala ordinal, de intervalo o de razón)." },
+        { label: "Distribución similar", text: "Para interpretar la prueba como comparación de medianas, ambas distribuciones deben tener forma similar (aunque no normal)." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se compara la satisfacción laboral (escala 1-10) entre empleados de dos departamentos. La distribución de las respuestas es asimétrica, por lo que se usa Mann-Whitney en lugar de t de Student.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Las distribuciones de los dos grupos son significativamente distintas." },
+        { label: "p ≥ 0.05", val: "No hay evidencia de diferencia sistemática entre grupos." },
+        { label: "U pequeño", val: "Los rangos de un grupo tienden a ser más bajos que los del otro." },
+        { label: "r = Z/√N", val: "Tamaño del efecto: r > 0.1 pequeño, > 0.3 mediano, > 0.5 grande." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+<span class="im">import</span> numpy <span class="kw">as</span> np
+
+grupo_a = [<span class="nm">7</span>, <span class="nm">8</span>, <span class="nm">6</span>, <span class="nm">9</span>, <span class="nm">5</span>]
+grupo_b = [<span class="nm">4</span>, <span class="nm">3</span>, <span class="nm">5</span>, <span class="nm">4</span>, <span class="nm">6</span>]
+
+u_stat, p_val = stats.<span class="fn">mannwhitneyu</span>(grupo_a, grupo_b, alternative=<span class="str">'two-sided'</span>)
+<span class="fn">print</span>(<span class="str">f"U = {u_stat:.1f}, p = {p_val:.4f}"</span>)
+
+<span class="cm"># Tamaño del efecto r</span>
+n = <span class="fn">len</span>(grupo_a) + <span class="fn">len</span>(grupo_b)
+z = stats.<span class="fn">norm</span>.ppf(<span class="nm">1</span> - p_val/<span class="nm">2</span>)
+r = z / np.<span class="fn">sqrt</span>(n)
+<span class="fn">print</span>(<span class="str">f"r = {r:.3f}"</span>)`
+    },
+
+    /* ── t pareada ── */
+    t_paired: {
+      name: "t de Student para muestras pareadas",
+      desc: "Compara las medias de dos mediciones relacionadas del mismo grupo de sujetos (antes/después, o pares de sujetos emparejados por características similares).",
+      formula: "t = d̄ / (s_d / √n)   donde d = x₁ᵢ − x₂ᵢ",
+      cuando: "Cuando los mismos sujetos son medidos en dos condiciones distintas (antes/después de una intervención) o cuando dos sujetos son emparejados intencionalmente.",
+      cuando_no: "No usar si los dos grupos son independientes (usa t de Student independiente). No usar si hay más de dos mediciones del mismo sujeto (usa ANOVA de medidas repetidas o Friedman).",
+      supuestos: [
+        { label: "Datos pareados", text: "Cada observación en el primer grupo debe tener un par correspondiente en el segundo grupo." },
+        { label: "Normalidad de diferencias", text: "Las diferencias d = x₁ − x₂ deben seguir distribución normal. Con n > 30 la prueba es robusta." },
+        { label: "Escala continua", text: "La variable debe medirse en escala de intervalo o razón para que las diferencias sean significativas." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se mide la presión arterial de 20 pacientes antes y después de 8 semanas de ejercicio aeróbico. Se usa t pareada para evaluar si hay reducción significativa en la misma muestra.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Existe diferencia significativa entre las dos condiciones o momentos." },
+        { label: "p ≥ 0.05", val: "No hay evidencia de cambio sistemático entre las mediciones." },
+        { label: "t > 0", val: "La primera medición tiene valores en promedio más altos." },
+        { label: "Cohen's d", val: "d = d̄/s_d. Efecto: pequeño (0.2), mediano (0.5), grande (0.8)." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+<span class="im">import</span> numpy <span class="kw">as</span> np
+
+antes  = [<span class="nm">140</span>, <span class="nm">145</span>, <span class="nm">138</span>, <span class="nm">150</span>, <span class="nm">142</span>]
+despues= [<span class="nm">132</span>, <span class="nm">138</span>, <span class="nm">130</span>, <span class="nm">144</span>, <span class="nm">135</span>]
+
+t_stat, p_val = stats.<span class="fn">ttest_rel</span>(antes, despues)
+<span class="fn">print</span>(<span class="str">f"t = {t_stat:.3f}, p = {p_val:.4f}"</span>)
+
+<span class="cm"># Cohen's d para muestras pareadas</span>
+diffs = np.<span class="fn">array</span>(antes) - np.<span class="fn">array</span>(despues)
+d = diffs.<span class="fn">mean</span>() / diffs.<span class="fn">std</span>(ddof=<span class="nm">1</span>)
+<span class="fn">print</span>(<span class="str">f"Cohen's d = {d:.3f}"</span>)`
+    },
+
+    /* ── Wilcoxon pareado ── */
+    wilcoxon: {
+      name: "Prueba de Wilcoxon de rangos con signo",
+      desc: "Alternativa no paramétrica a la t pareada. Evalúa si hay diferencia sistemática entre dos mediciones relacionadas, usando rangos de las diferencias en lugar de su magnitud.",
+      formula: "W = Σ sgn(xᵢ − yᵢ) · Rᵢ",
+      cuando: "Cuando las diferencias entre pares no siguen distribución normal, los datos son ordinales, o la muestra es pequeña y no puede asumirse normalidad.",
+      cuando_no: "No usar para grupos independientes (usa Mann-Whitney). No reemplaza a Friedman cuando hay tres o más mediciones repetidas.",
+      supuestos: [
+        { label: "Datos pareados", text: "Cada par de observaciones debe corresponder al mismo sujeto o a sujetos emparejados." },
+        { label: "Simetría", text: "La distribución de las diferencias debe ser aproximadamente simétrica alrededor de la mediana (no necesariamente normal)." },
+        { label: "Escala ordinal+", text: "Las diferencias deben poder ordenarse (escala ordinal, de intervalo o de razón)." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se evalúa la percepción de dolor (escala 1-10) en 15 pacientes con fibromialgia antes y después de terapia. La distribución de las diferencias no es normal, por lo que se usa Wilcoxon.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Diferencia mediana significativa entre las dos condiciones." },
+        { label: "p ≥ 0.05", val: "Sin evidencia de cambio sistemático entre mediciones." },
+        { label: "W grande", val: "Los rangos positivos predominan (segunda condición mayor)." },
+        { label: "r = Z/√N", val: "Tamaño del efecto similar a Mann-Whitney." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+
+antes  = [<span class="nm">7</span>, <span class="nm">8</span>, <span class="nm">6</span>, <span class="nm">9</span>, <span class="nm">7</span>]
+despues= [<span class="nm">5</span>, <span class="nm">6</span>, <span class="nm">4</span>, <span class="nm">7</span>, <span class="nm">5</span>]
+
+w_stat, p_val = stats.<span class="fn">wilcoxon</span>(antes, despues)
+<span class="fn">print</span>(<span class="str">f"W = {w_stat:.1f}, p = {p_val:.4f}"</span>)`
+    },
+
+    /* ── Wilcoxon una muestra ── */
+    wilcoxon_1: {
+      name: "Wilcoxon de una muestra (mediana de referencia)",
+      desc: "Contrasta si la mediana de una única muestra difiere significativamente de un valor hipotético conocido, sin asumir normalidad en los datos.",
+      formula: "W⁺ = Σ Rᵢ · I(dᵢ > 0)",
+      cuando: "Cuando tienes una sola muestra y deseas compararla con un estándar conocido (p. ej., valor normal clínico) y los datos no son normales.",
+      cuando_no: "Si los datos son normales, usar t de Student de una muestra (más potente). No usar si los datos son puramente nominales.",
+      supuestos: [
+        { label: "Simetría", text: "La distribución alrededor de la mediana hipotética debe ser aproximadamente simétrica." },
+        { label: "Independencia", text: "Las observaciones no deben influirse entre sí." },
+        { label: "Escala ordinal+", text: "Las diferencias respecto al valor de referencia deben poder ordenarse." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se mide el nivel de glucosa en 18 pacientes. Se quiere saber si la mediana difiere del valor normal de referencia (100 mg/dL) sin asumir normalidad.",
+      interpretacion: [
+        { label: "p < 0.05", val: "La mediana de la muestra difiere del valor de referencia." },
+        { label: "p ≥ 0.05", val: "No hay evidencia de diferencia con el valor hipotético." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+
+muestra   = [<span class="nm">105</span>, <span class="nm">98</span>, <span class="nm">112</span>, <span class="nm">95</span>, <span class="nm">108</span>]
+referencia = <span class="nm">100</span>  <span class="cm"># valor hipotético</span>
+
+diffs = [x - referencia <span class="kw">for</span> x <span class="kw">in</span> muestra]
+w_stat, p_val = stats.<span class="fn">wilcoxon</span>(diffs)
+<span class="fn">print</span>(<span class="str">f"W = {w_stat:.1f}, p = {p_val:.4f}"</span>)`
+    },
+
+    /* ── t una muestra ── */
+    t_one: {
+      name: "t de Student de una muestra",
+      desc: "Compara la media de una única muestra con un valor teórico o de referencia conocido para determinar si difieren significativamente.",
+      formula: "t = (x̄ − μ₀) / (s / √n)",
+      cuando: "Cuando tienes un solo grupo y deseas saber si su media difiere de un valor estándar (p. ej., valor normativo, umbral clínico, o cero).",
+      cuando_no: "No usar si la variable no es continua o si la muestra es muy pequeña y no hay normalidad (usa Wilcoxon de una muestra).",
+      supuestos: [
+        { label: "Normalidad", text: "Los datos deben ser normales o n > 30 para aplicar el TCL." },
+        { label: "Independencia", text: "Las observaciones no deben estar relacionadas entre sí." },
+        { label: "Escala continua", text: "Variable de intervalo o razón." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Un estudio evalúa si el tiempo de reacción promedio (ms) en un grupo de conductores mayores de 65 años difiere del valor normativo de 250 ms establecido en la literatura.",
+      interpretacion: [
+        { label: "p < 0.05", val: "La media de la muestra difiere significativamente del valor de referencia." },
+        { label: "p ≥ 0.05", val: "No hay evidencia suficiente de diferencia con el valor teórico." },
+        { label: "IC 95 %", val: "Si el intervalo no incluye μ₀, hay diferencia significativa." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+
+muestra = [<span class="nm">260</span>, <span class="nm">275</span>, <span class="nm">248</span>, <span class="nm">290</span>, <span class="nm">265</span>]
+mu_0 = <span class="nm">250</span>  <span class="cm"># valor de referencia</span>
+
+t_stat, p_val = stats.<span class="fn">ttest_1samp</span>(muestra, mu_0)
+<span class="fn">print</span>(<span class="str">f"t = {t_stat:.3f}, p = {p_val:.4f}"</span>)`
+    },
+
+    /* ── ANOVA ── */
+    anova: {
+      name: "ANOVA de un factor",
+      desc: "Compara las medias de tres o más grupos independientes simultáneamente para detectar si al menos un par difiere significativamente.",
+      formula: "F = MS_entre / MS_dentro = (SS_entre/(k-1)) / (SS_dentro/(N-k))",
+      cuando: "Cuando tienes tres o más grupos independientes y una variable dependiente continua con distribución normal.",
+      cuando_no: "No usar para solo dos grupos (usa t de Student, más potente). Si los supuestos no se cumplen, usar Kruskal-Wallis. ANOVA detecta si hay diferencia pero no entre qué grupos: usar pruebas post-hoc.",
+      supuestos: [
+        { label: "Normalidad", text: "La variable dependiente debe ser normal en cada grupo. Con grupos grandes (n > 30), el TCL mitiga este requisito." },
+        { label: "Homocedasticidad", text: "Las varianzas de todos los grupos deben ser iguales (prueba de Levene). Si no, usar Welch-ANOVA." },
+        { label: "Independencia", text: "Las observaciones no deben estar relacionadas entre grupos ni dentro de ellos." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se compara el rendimiento académico (calificación final) de estudiantes bajo tres métodos de enseñanza: tradicional, flipped classroom y online. ANOVA determina si algún método es superior.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Al menos un par de grupos difiere significativamente. Usar post-hoc." },
+        { label: "p ≥ 0.05", val: "No hay evidencia de diferencias entre los grupos." },
+        { label: "F grande", val: "Mayor variabilidad entre grupos que dentro de ellos." },
+        { label: "Post-hoc", val: "Tukey (varianzas iguales), Games-Howell (varianzas distintas), Bonferroni (pocas comparaciones)." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+<span class="im">from</span> statsmodels.stats.multicomp <span class="im">import</span> pairwise_tukeyhsd
+<span class="im">import</span> numpy <span class="kw">as</span> np
+
+grupo_a = [<span class="nm">78</span>, <span class="nm">82</span>, <span class="nm">80</span>, <span class="nm">75</span>, <span class="nm">85</span>]
+grupo_b = [<span class="nm">88</span>, <span class="nm">91</span>, <span class="nm">86</span>, <span class="nm">90</span>, <span class="nm">87</span>]
+grupo_c = [<span class="nm">70</span>, <span class="nm">72</span>, <span class="nm">68</span>, <span class="nm">74</span>, <span class="nm">71</span>]
+
+f_stat, p_val = stats.<span class="fn">f_oneway</span>(grupo_a, grupo_b, grupo_c)
+<span class="fn">print</span>(<span class="str">f"F = {f_stat:.3f}, p = {p_val:.4f}"</span>)
+
+<span class="cm"># Post-hoc Tukey</span>
+datos   = grupo_a + grupo_b + grupo_c
+grupos  = [<span class="str">'A'</span>]*<span class="nm">5</span> + [<span class="str">'B'</span>]*<span class="nm">5</span> + [<span class="str">'C'</span>]*<span class="nm">5</span>
+tukey   = <span class="fn">pairwise_tukeyhsd</span>(datos, grupos)
+<span class="fn">print</span>(tukey)`
+    },
+
+    /* ── Kruskal-Wallis ── */
+    kruskal: {
+      name: "Kruskal-Wallis",
+      desc: "Alternativa no paramétrica al ANOVA de un factor. Compara tres o más grupos independientes a través de rangos, sin asumir normalidad ni homocedasticidad.",
+      formula: "H = (12/N(N+1)) · Σ(Rⱼ²/nⱼ) − 3(N+1)",
+      cuando: "Cuando los datos no son normales, son ordinales, o las varianzas difieren mucho entre grupos (más de tres grupos).",
+      cuando_no: "Si los datos son normales, ANOVA tiene más potencia estadística. No sirve para medidas repetidas (usar Friedman).",
+      supuestos: [
+        { label: "Independencia", text: "Las muestras de cada grupo son independientes entre sí." },
+        { label: "Escala ordinal+", text: "Los datos deben poder ordenarse de menor a mayor." },
+        { label: "Misma forma", text: "Para comparar medianas, las distribuciones deben tener forma similar." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se compara la satisfacción (escala 1-5) con el servicio de salud en tres regiones del país. Al ser escala ordinal con distribución asimétrica, se usa Kruskal-Wallis.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Al menos un grupo difiere significativamente de los demás en distribución." },
+        { label: "p ≥ 0.05", val: "No hay diferencias significativas entre los grupos." },
+        { label: "Post-hoc", val: "Dunn con corrección Bonferroni para comparaciones múltiples." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+<span class="im">from</span> scikit_posthocs <span class="im">import</span> posthoc_dunn  <span class="cm"># pip install scikit-posthocs</span>
+
+grupo_a = [<span class="nm">3</span>, <span class="nm">4</span>, <span class="nm">3</span>, <span class="nm">5</span>, <span class="nm">4</span>]
+grupo_b = [<span class="nm">2</span>, <span class="nm">2</span>, <span class="nm">3</span>, <span class="nm">2</span>, <span class="nm">1</span>]
+grupo_c = [<span class="nm">5</span>, <span class="nm">4</span>, <span class="nm">5</span>, <span class="nm">5</span>, <span class="nm">4</span>]
+
+h_stat, p_val = stats.<span class="fn">kruskal</span>(grupo_a, grupo_b, grupo_c)
+<span class="fn">print</span>(<span class="str">f"H = {h_stat:.3f}, p = {p_val:.4f}"</span>)
+
+<span class="cm"># Post-hoc Dunn</span>
+<span class="cm"># dunn_result = posthoc_dunn([grupo_a, grupo_b, grupo_c], p_adjust='bonferroni')</span>`
+    },
+
+    /* ── ANOVA medidas repetidas ── */
+    anova_mr: {
+      name: "ANOVA de medidas repetidas",
+      desc: "Compara las medias de tres o más mediciones del mismo grupo de sujetos a lo largo del tiempo o bajo distintas condiciones.",
+      formula: "F = MS_tratamiento / MS_error",
+      cuando: "Cuando los mismos sujetos son medidos tres o más veces: seguimiento longitudinal, pruebas antes/durante/después, o diseños de cruce (crossover).",
+      cuando_no: "No usar si las mediciones son independientes (usa ANOVA de un factor). Si se viola la esfericidad y no puede corregirse (Greenhouse-Geisser), considerar modelos mixtos.",
+      supuestos: [
+        { label: "Normalidad", text: "Las diferencias entre pares de condiciones deben ser normales." },
+        { label: "Esfericidad", text: "Las varianzas de las diferencias entre pares de condiciones deben ser iguales (prueba de Mauchly). Si no, corregir con Greenhouse-Geisser o Huynh-Feldt." },
+        { label: "Datos completos", text: "Preferiblemente sin valores faltantes; si los hay, considerar modelos mixtos." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se mide la concentración de cortisol en 20 deportistas en tres momentos: basal, post-entrenamiento y recuperación. Se usa ANOVA de medidas repetidas para ver si cambia a lo largo del tiempo.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Al menos un par de momentos difiere significativamente." },
+        { label: "η² parcial", val: "Tamaño del efecto: pequeño (0.01), mediano (0.06), grande (0.14)." },
+        { label: "Post-hoc", val: "Comparaciones por pares con corrección de Bonferroni." }
+      ],
+      python: `<span class="im">import</span> pandas <span class="kw">as</span> pd
+<span class="im">from</span> statsmodels.stats.anova <span class="im">import</span> AnovaRM
+
+<span class="cm"># Datos en formato largo</span>
+df = pd.<span class="fn">DataFrame</span>({
+    <span class="str">'sujeto'</span>   : [<span class="nm">1</span>,<span class="nm">1</span>,<span class="nm">1</span>, <span class="nm">2</span>,<span class="nm">2</span>,<span class="nm">2</span>, <span class="nm">3</span>,<span class="nm">3</span>,<span class="nm">3</span>],
+    <span class="str">'momento'</span>  : [<span class="str">'basal'</span>,<span class="str">'post'</span>,<span class="str">'recup'</span>]*<span class="nm">3</span>,
+    <span class="str">'cortisol'</span> : [<span class="nm">12</span>,<span class="nm">18</span>,<span class="nm">14</span>, <span class="nm">10</span>,<span class="nm">16</span>,<span class="nm">11</span>, <span class="nm">13</span>,<span class="nm">20</span>,<span class="nm">15</span>]
+})
+
+modelo = <span class="fn">AnovaRM</span>(df, <span class="str">'cortisol'</span>, <span class="str">'sujeto'</span>, within=[<span class="str">'momento'</span>])
+resultado = modelo.<span class="fn">fit</span>()
+<span class="fn">print</span>(resultado.<span class="fn">summary</span>())`
+    },
+
+    /* ── Friedman ── */
+    friedman: {
+      name: "Prueba de Friedman",
+      desc: "Alternativa no paramétrica al ANOVA de medidas repetidas. Compara tres o más mediciones relacionadas usando rangos, sin asumir normalidad.",
+      formula: "χ²_r = (12/Nk(k+1)) · Σ Rⱼ² − 3N(k+1)",
+      cuando: "Cuando los mismos sujetos se miden tres o más veces y los datos no son normales o son de escala ordinal.",
+      cuando_no: "Si los datos son normales, ANOVA de medidas repetidas tiene más potencia. No usar para grupos independientes (usar Kruskal-Wallis).",
+      supuestos: [
+        { label: "Medidas relacionadas", text: "Las mismas unidades experimentales se miden en cada condición." },
+        { label: "Escala ordinal+", text: "Los datos deben poder ranquearse." },
+        { label: "Sin empates excesivos", text: "Muchos empates reducen la potencia de la prueba." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> 12 jueces evalúan tres marcas de café en escala del 1 al 5. Se usa Friedman para determinar si hay diferencias percibidas entre las marcas.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Al menos una condición difiere significativamente del resto." },
+        { label: "p ≥ 0.05", val: "No hay evidencia de diferencias sistemáticas entre condiciones." },
+        { label: "Post-hoc", val: "Prueba de Nemenyi o Wilcoxon por pares con corrección Bonferroni." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+
+<span class="cm"># Cada lista = mediciones del mismo sujeto en distintas condiciones</span>
+cond_a = [<span class="nm">4</span>, <span class="nm">3</span>, <span class="nm">5</span>, <span class="nm">4</span>, <span class="nm">3</span>]
+cond_b = [<span class="nm">2</span>, <span class="nm">2</span>, <span class="nm">3</span>, <span class="nm">2</span>, <span class="nm">2</span>]
+cond_c = [<span class="nm">5</span>, <span class="nm">4</span>, <span class="nm">5</span>, <span class="nm">5</span>, <span class="nm">4</span>]
+
+chi2, p_val = stats.<span class="fn">friedmanchisquare</span>(cond_a, cond_b, cond_c)
+<span class="fn">print</span>(<span class="str">f"χ² = {chi2:.3f}, p = {p_val:.4f}"</span>)`
+    },
+
+    /* ── ANOVA factorial ── */
+    anova_factorial: {
+      name: "ANOVA factorial (2 factores)",
+      desc: "Analiza el efecto simultáneo de dos variables independientes (factores) sobre una variable dependiente continua, incluyendo su posible interacción.",
+      formula: "F_A = MS_A/MS_error,  F_B = MS_B/MS_error,  F_AB = MS_AB/MS_error",
+      cuando: "Cuando tienes dos factores categóricos (p. ej., tratamiento y sexo) y deseas saber si cada uno tiene efecto independiente y si interactúan entre sí.",
+      cuando_no: "No usar si solo hay un factor (ANOVA de un factor). No usar si los datos no son normales con muestras pequeñas (explorar ANOVA no paramétrico o transformaciones).",
+      supuestos: [
+        { label: "Normalidad", text: "Variable dependiente normal en cada combinación de factores." },
+        { label: "Homocedasticidad", text: "Varianzas iguales en todas las celdas del diseño." },
+        { label: "Independencia", text: "Observaciones no relacionadas entre grupos." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se estudia cómo el tipo de dieta (A, B, C) y el sexo (hombre, mujer) afectan la pérdida de peso. El ANOVA factorial revela si el efecto de la dieta varía según el sexo (interacción).",
+      interpretacion: [
+        { label: "Efecto principal A", val: "Factor A tiene efecto independientemente del Factor B." },
+        { label: "Efecto principal B", val: "Factor B tiene efecto independientemente del Factor A." },
+        { label: "Interacción A×B", val: "El efecto de A depende del nivel de B (y viceversa). Prioritario interpretarlo." },
+        { label: "η² parcial", val: "Proporción de varianza explicada por cada factor o interacción." }
+      ],
+      python: `<span class="im">import</span> pandas <span class="kw">as</span> pd
+<span class="im">import</span> statsmodels.formula.api <span class="kw">as</span> smf
+<span class="im">from</span> statsmodels.stats.anova <span class="im">import</span> anova_lm
+
+df = pd.<span class="fn">DataFrame</span>({
+    <span class="str">'peso'</span>  : [<span class="nm">3.2</span>,<span class="nm">4.1</span>,<span class="nm">2.8</span>,<span class="nm">5.0</span>,<span class="nm">3.5</span>,<span class="nm">4.8</span>],
+    <span class="str">'dieta'</span> : [<span class="str">'A'</span>,<span class="str">'A'</span>,<span class="str">'B'</span>,<span class="str">'B'</span>,<span class="str">'C'</span>,<span class="str">'C'</span>],
+    <span class="str">'sexo'</span>  : [<span class="str">'M'</span>,<span class="str">'F'</span>,<span class="str">'M'</span>,<span class="str">'F'</span>,<span class="str">'M'</span>,<span class="str">'F'</span>]
+})
+
+modelo = smf.<span class="fn">ols</span>(<span class="str">'peso ~ C(dieta) * C(sexo)'</span>, data=df).<span class="fn">fit</span>()
+tabla  = <span class="fn">anova_lm</span>(modelo, typ=<span class="nm">2</span>)
+<span class="fn">print</span>(tabla)`
+    },
+
+    /* ── Chi-cuadrado ── */
+    chi2: {
+      name: "Chi-cuadrado de independencia (χ²)",
+      desc: "Examina si existe asociación estadística significativa entre dos variables categóricas comparando las frecuencias observadas con las esperadas bajo independencia.",
+      formula: "χ² = Σ (Oᵢⱼ − Eᵢⱼ)² / Eᵢⱼ",
+      cuando: "Cuando ambas variables son categóricas (nominales u ordinales) y deseas saber si están relacionadas o son independientes.",
+      cuando_no: "No usar si alguna celda de la tabla tiene frecuencia esperada < 5 (usar Fisher exacto). No usar para variables continuas directamente (categorizar implica pérdida de información).",
+      supuestos: [
+        { label: "Frecuencias esperadas ≥ 5", text: "Cada celda de la tabla de contingencia debe tener frecuencia esperada ≥ 5. Si no, usar prueba exacta de Fisher." },
+        { label: "Independencia", text: "Las observaciones deben ser independientes entre sí (no medir el mismo sujeto dos veces)." },
+        { label: "Muestreo aleatorio", text: "Los datos deben provenir de una muestra representativa." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Un estudio evalúa si hay asociación entre el nivel de educación (básica, media, superior) y la preferencia por un partido político (A, B, C). Se construye una tabla 3×3 y se aplica Chi-cuadrado.",
+      interpretacion: [
+        { label: "p < 0.05", val: "Existe asociación significativa entre las variables. No implica causalidad." },
+        { label: "p ≥ 0.05", val: "Las variables son independientes; no hay asociación detectada." },
+        { label: "V de Cramér", val: "Tamaño del efecto: pequeño (0.1), mediano (0.3), grande (0.5)." },
+        { label: "Residuos ajustados", val: "Identifican qué celdas contribuyen más a la asociación (|z| > 1.96)." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+<span class="im">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># Tabla de contingencia (frecuencias observadas)</span>
+tabla = [[<span class="nm">50</span>, <span class="nm">30</span>, <span class="nm">20</span>],
+         [<span class="nm">20</span>, <span class="nm">40</span>, <span class="nm">40</span>],
+         [<span class="nm">10</span>, <span class="nm">20</span>, <span class="nm">70</span>]]
+
+chi2, p_val, dof, expected = stats.<span class="fn">chi2_contingency</span>(tabla)
+<span class="fn">print</span>(<span class="str">f"χ² = {chi2:.3f}, p = {p_val:.4f}, gl = {dof}"</span>)
+
+<span class="cm"># V de Cramér</span>
+n = np.<span class="fn">array</span>(tabla).<span class="fn">sum</span>()
+k = <span class="fn">min</span>(np.<span class="fn">array</span>(tabla).shape) - <span class="nm">1</span>
+v = np.<span class="fn">sqrt</span>(chi2 / (n * k))
+<span class="fn">print</span>(<span class="str">f"V de Cramér = {v:.3f}"</span>)`
+    },
+
+    /* ── Pearson ── */
+    pearson: {
+      name: "Correlación de Pearson (r)",
+      desc: "Mide la fuerza y dirección de la relación lineal entre dos variables cuantitativas continuas. Produce un coeficiente entre -1 y +1.",
+      formula: "r = Σ[(xᵢ−x̄)(yᵢ−ȳ)] / √[Σ(xᵢ−x̄)² · Σ(yᵢ−ȳ)²]",
+      cuando: "Cuando ambas variables son continuas y normales, y se sospecha una relación lineal entre ellas (peso vs. talla, horas de estudio vs. calificación).",
+      cuando_no: "No usar si la relación es no lineal (aunque los datos sean normales). No usar con datos ordinales o con muchos valores atípicos. No implica causalidad.",
+      supuestos: [
+        { label: "Normalidad bivariada", text: "Ambas variables deben seguir distribución normal conjunta." },
+        { label: "Linealidad", text: "La relación entre X e Y debe ser aproximadamente lineal (revisar gráfico de dispersión)." },
+        { label: "Homoscedasticidad", text: "La varianza de Y debe ser constante en todos los niveles de X." },
+        { label: "Sin valores atípicos", text: "Los outliers influyentes pueden distorsionar r drásticamente." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se estudia la relación entre las horas de ejercicio semanal y el porcentaje de grasa corporal en 50 adultos. Se calcula r de Pearson para cuantificar la asociación lineal.",
+      interpretacion: [
+        { label: "r = ±1", val: "Correlación lineal perfecta positiva/negativa." },
+        { label: "r = 0", val: "Sin correlación lineal (puede haber relación no lineal)." },
+        { label: "|r| > 0.7", val: "Correlación fuerte. 0.3-0.7: moderada. < 0.3: débil." },
+        { label: "r²", val: "Coeficiente de determinación: % de varianza de Y explicada por X." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+
+horas_ejercicio = [<span class="nm">3</span>, <span class="nm">5</span>, <span class="nm">1</span>, <span class="nm">7</span>, <span class="nm">4</span>, <span class="nm">6</span>, <span class="nm">2</span>]
+pct_grasa       = [<span class="nm">28</span>, <span class="nm">22</span>, <span class="nm">35</span>, <span class="nm">18</span>, <span class="nm">26</span>, <span class="nm">20</span>, <span class="nm">32</span>]
+
+r, p_val = stats.<span class="fn">pearsonr</span>(horas_ejercicio, pct_grasa)
+<span class="fn">print</span>(<span class="str">f"r = {r:.3f}, p = {p_val:.4f}, r² = {r**2:.3f}"</span>)`
+    },
+
+    /* ── Spearman ── */
+    spearman: {
+      name: "Correlación de Spearman (ρ)",
+      desc: "Alternativa no paramétrica a Pearson. Mide la relación monótona entre dos variables usando sus rangos, sin requerir normalidad ni linealidad estricta.",
+      formula: "ρ = 1 − (6·Σdᵢ²) / (n(n²−1))",
+      cuando: "Cuando los datos son ordinales, no cumplen normalidad, contienen valores atípicos o la relación es monótona pero no necesariamente lineal.",
+      cuando_no: "Si los datos son normales y la relación es lineal, Pearson es más potente. No mide relaciones no monótonas (en U o en S).",
+      supuestos: [
+        { label: "Relación monótona", text: "A medida que X aumenta, Y también aumenta (o disminuye) de forma consistente, aunque no necesariamente a tasa constante." },
+        { label: "Escala ordinal+", text: "Los datos deben poder ordenarse." },
+        { label: "Sin muchos empates", text: "Muchos empates en los rangos reducen la precisión del coeficiente." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se estudia la relación entre el rango de posición socioeconómica (1-5) y el nivel de acceso a servicios de salud (muy bajo a muy alto). Al ser ordinal, se usa Spearman.",
+      interpretacion: [
+        { label: "ρ = ±1", val: "Relación monótona perfecta." },
+        { label: "ρ = 0", val: "Sin relación monótona." },
+        { label: "|ρ| > 0.7", val: "Relación monótona fuerte. 0.3-0.7: moderada. < 0.3: débil." },
+        { label: "p < 0.05", val: "La correlación es estadísticamente significativa." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+
+posicion = [<span class="nm">1</span>, <span class="nm">2</span>, <span class="nm">3</span>, <span class="nm">4</span>, <span class="nm">5</span>, <span class="nm">3</span>, <span class="nm">2</span>]
+acceso   = [<span class="nm">2</span>, <span class="nm">3</span>, <span class="nm">3</span>, <span class="nm">4</span>, <span class="nm">5</span>, <span class="nm">2</span>, <span class="nm">1</span>]
+
+rho, p_val = stats.<span class="fn">spearmanr</span>(posicion, acceso)
+<span class="fn">print</span>(<span class="str">f"ρ = {rho:.3f}, p = {p_val:.4f}"</span>)`
+    },
+
+    /* ── Regresión lineal ── */
+    reg_lineal: {
+      name: "Regresión Lineal",
+      desc: "Modela la relación entre una variable dependiente continua y una o más variables predictoras, estimando coeficientes que cuantifican la influencia de cada predictor.",
+      formula: "Ŷ = β₀ + β₁X₁ + β₂X₂ + ... + βₖXₖ + ε",
+      cuando: "Cuando deseas predecir o explicar una variable continua a partir de otras variables (simples o múltiples). Estimar cuánto cambia Y por cada unidad de cambio en X.",
+      cuando_no: "No usar si la variable dependiente es categórica (usa regresión logística). No usar si la relación entre variables es claramente no lineal sin transformar las variables.",
+      supuestos: [
+        { label: "Linealidad", text: "La relación entre cada predictor y Y debe ser lineal." },
+        { label: "Normalidad de residuos", text: "Los residuos (errores) deben distribuirse normalmente." },
+        { label: "Homocedasticidad", text: "La varianza de los residuos debe ser constante en todos los niveles de Y predicho." },
+        { label: "Independencia", text: "Las observaciones deben ser independientes (no datos de serie de tiempo sin modelar autocorrelación)." },
+        { label: "Sin multicolinealidad", text: "En regresión múltiple, los predictores no deben estar altamente correlacionados entre sí (VIF < 5-10)." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se desea predecir el salario anual de empleados a partir de años de experiencia, nivel educativo y área de la empresa. La regresión múltiple estima el aporte independiente de cada variable.",
+      interpretacion: [
+        { label: "β (coeficiente)", val: "Cambio esperado en Y por cada unidad de cambio en X, manteniendo otras constantes." },
+        { label: "R²", val: "Proporción de varianza de Y explicada por el modelo. R² = 0.7 → 70% explicado." },
+        { label: "p del predictor", val: "Si p < 0.05, ese predictor tiene efecto significativo sobre Y." },
+        { label: "F del modelo", val: "Si p < 0.05, el modelo en conjunto es significativo." }
+      ],
+      python: `<span class="im">import</span> statsmodels.formula.api <span class="kw">as</span> smf
+<span class="im">import</span> pandas <span class="kw">as</span> pd
+
+df = pd.<span class="fn">DataFrame</span>({
+    <span class="str">'salario'</span>     : [<span class="nm">35</span>, <span class="nm">50</span>, <span class="nm">45</span>, <span class="nm">70</span>, <span class="nm">60</span>],
+    <span class="str">'experiencia'</span> : [<span class="nm">2</span>,  <span class="nm">5</span>,  <span class="nm">4</span>,  <span class="nm">10</span>, <span class="nm">8</span>],
+    <span class="str">'educacion'</span>   : [<span class="nm">1</span>,  <span class="nm">2</span>,  <span class="nm">2</span>,  <span class="nm">3</span>,  <span class="nm">3</span>]
+})
+
+modelo = smf.<span class="fn">ols</span>(<span class="str">'salario ~ experiencia + educacion'</span>, data=df).<span class="fn">fit</span>()
+<span class="fn">print</span>(modelo.<span class="fn">summary</span>())`
+    },
+
+    /* ── Regresión logística ── */
+    reg_logistica: {
+      name: "Regresión Logística",
+      desc: "Modela la probabilidad de que ocurra un evento categórico (binario o multinomial) en función de una o más variables predictoras.",
+      formula: "log(p/1−p) = β₀ + β₁X₁ + ... + βₖXₖ",
+      cuando: "Cuando la variable dependiente es categórica: diagnóstico (Sí/No), supervivencia, clasificación en grupos. Los predictores pueden ser continuos o categóricos.",
+      cuando_no: "No usar si la variable dependiente es continua (usa regresión lineal). Con muy pocas observaciones por categoría, los coeficientes son inestables (regla: ≥ 10-20 eventos por predictor).",
+      supuestos: [
+        { label: "Independencia", text: "Las observaciones no deben estar relacionadas entre sí." },
+        { label: "Linealidad del logit", text: "Los predictores continuos deben tener relación lineal con el logaritmo de las odds." },
+        { label: "Sin multicolinealidad", text: "Los predictores no deben estar altamente correlacionados (VIF < 5)." },
+        { label: "Muestra grande", text: "Regla general: ≥ 10-20 eventos del resultado menos frecuente por predictor incluido." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se modela la probabilidad de desarrollar diabetes tipo 2 en función de IMC, edad, glucosa en ayunas y antecedentes familiares. La regresión logística estima el riesgo relativo de cada factor.",
+      interpretacion: [
+        { label: "Odds Ratio (OR)", val: "OR > 1: el predictor aumenta la probabilidad del evento. OR < 1: la disminuye." },
+        { label: "p del coeficiente", val: "Si p < 0.05, ese predictor predice significativamente el resultado." },
+        { label: "AUC-ROC", val: "Capacidad discriminativa: 0.7-0.8 aceptable, 0.8-0.9 bueno, > 0.9 excelente." },
+        { label: "Hosmer-Lemeshow", val: "Prueba de bondad de ajuste: p > 0.05 indica buen ajuste del modelo." }
+      ],
+      python: `<span class="im">import</span> statsmodels.api <span class="kw">as</span> sm
+<span class="im">import</span> pandas <span class="kw">as</span> pd
+<span class="im">import</span> numpy <span class="kw">as</span> np
+
+df = pd.<span class="fn">DataFrame</span>({
+    <span class="str">'diabetes'</span>    : [<span class="nm">0</span>,<span class="nm">0</span>,<span class="nm">1</span>,<span class="nm">1</span>,<span class="nm">0</span>,<span class="nm">1</span>],
+    <span class="str">'imc'</span>         : [<span class="nm">22</span>,<span class="nm">25</span>,<span class="nm">30</span>,<span class="nm">35</span>,<span class="nm">24</span>,<span class="nm">32</span>],
+    <span class="str">'edad'</span>        : [<span class="nm">30</span>,<span class="nm">45</span>,<span class="nm">50</span>,<span class="nm">60</span>,<span class="nm">35</span>,<span class="nm">55</span>]
+})
+
+X = sm.<span class="fn">add_constant</span>(df[[<span class="str">'imc'</span>,<span class="str">'edad'</span>]])
+y = df[<span class="str">'diabetes'</span>]
+
+modelo = sm.Logit(y, X).<span class="fn">fit</span>()
+<span class="fn">print</span>(modelo.<span class="fn">summary</span>())
+<span class="cm"># Odds Ratios</span>
+<span class="fn">print</span>(np.<span class="fn">exp</span>(modelo.params))`
+    },
+
+    /* ── Kaplan-Meier ── */
+    kaplan: {
+      name: "Kaplan-Meier + Prueba Log-rank",
+      desc: "Analiza el tiempo hasta que ocurre un evento (muerte, recaída, fallo) y compara curvas de supervivencia entre dos o más grupos.",
+      formula: "S(t) = Π_{tᵢ≤t} (1 − dᵢ/nᵢ)",
+      cuando: "Cuando el resultado de interés es el tiempo hasta un evento y algunos sujetos no experimentaron el evento al finalizar el estudio (datos censurados).",
+      cuando_no: "No usar cuando todos los sujetos tienen tiempo de seguimiento idéntico (usar Chi-cuadrado o t de Student según el caso). No es adecuado para eventos recurrentes.",
+      supuestos: [
+        { label: "Censura no informativa", text: "Los sujetos que salen del estudio (censura) no difieren sistemáticamente de quienes permanecen." },
+        { label: "Proporcionalidad de riesgos", text: "Para la prueba log-rank, los riesgos entre grupos deben ser proporcionales a lo largo del tiempo." },
+        { label: "Independencia", text: "Los tiempos de supervivencia de distintos sujetos son independientes." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Se compara la supervivencia de pacientes con cáncer de pulmón en dos grupos: quimioterapia estándar vs. inmunoterapia. Se usa Kaplan-Meier para estimar curvas de supervivencia y log-rank para compararlas.",
+      interpretacion: [
+        { label: "p del log-rank < 0.05", val: "Las curvas de supervivencia difieren significativamente entre grupos." },
+        { label: "Mediana de supervivencia", val: "Tiempo en el cual el 50% de los sujetos ya experimentó el evento." },
+        { label: "Hazard Ratio (HR)", val: "Con regresión de Cox: HR > 1 indica mayor riesgo en el grupo 1." }
+      ],
+      python: `<span class="im">from</span> lifelines <span class="im">import</span> KaplanMeierFitter  <span class="cm"># pip install lifelines</span>
+<span class="im">from</span> lifelines.statistics <span class="im">import</span> logrank_test
+<span class="im">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+
+<span class="cm"># Tiempos de seguimiento y evento (1=evento, 0=censura)</span>
+t_ctrl   = [<span class="nm">5</span>,  <span class="nm">12</span>, <span class="nm">20</span>, <span class="nm">8</span>,  <span class="nm">15</span>]
+e_ctrl   = [<span class="nm">1</span>,  <span class="nm">0</span>,  <span class="nm">1</span>,  <span class="nm">1</span>,  <span class="nm">0</span>]
+t_trat   = [<span class="nm">18</span>, <span class="nm">24</span>, <span class="nm">30</span>, <span class="nm">22</span>, <span class="nm">28</span>]
+e_trat   = [<span class="nm">0</span>,  <span class="nm">1</span>,  <span class="nm">0</span>,  <span class="nm">1</span>,  <span class="nm">0</span>]
+
+results = <span class="fn">logrank_test</span>(t_ctrl, t_trat, e_ctrl, e_trat)
+<span class="fn">print</span>(<span class="str">f"Log-rank p = {results.p_value:.4f}"</span>)
+
+kmf = <span class="fn">KaplanMeierFitter</span>()
+kmf.<span class="fn">fit</span>(t_ctrl, e_ctrl, label=<span class="str">'Control'</span>).<span class="fn">plot_survival_function</span>()`
+    },
+
+    /* ── Kappa de Cohen ── */
+    kappa: {
+      name: "Kappa de Cohen (κ)",
+      desc: "Mide el grado de concordancia entre dos evaluadores u observadores para clasificaciones categóricas, corrigiendo el acuerdo esperado por azar.",
+      formula: "κ = (P_obs − P_esp) / (1 − P_esp)",
+      cuando: "Cuando dos evaluadores clasifican el mismo conjunto de sujetos en categorías y deseas medir cuánto acuerdan más allá del azar (diagnóstico, codificación de respuestas, interpretación de imágenes médicas).",
+      cuando_no: "No usar para variables continuas (usar ICC). No usar cuando hay más de dos evaluadores sin extensión a Kappa ponderado/multirater. La escala de Kappa puede ser engañosa con distribuciones muy desiguales (paradoja de Kappa).",
+      supuestos: [
+        { label: "Clasificaciones independientes", text: "Cada evaluador debe clasificar sin conocer la decisión del otro." },
+        { label: "Mismas categorías", text: "Ambos evaluadores usan exactamente el mismo esquema de categorías." },
+        { label: "Muestra representativa", text: "El conjunto evaluado debe ser representativo de la distribución real de categorías." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Dos radiólogos clasifican 80 radiografías de tórax como: normal, neumonía o tumor. Se calcula Kappa para saber si su concordancia diagnóstica va más allá del azar.",
+      interpretacion: [
+        { label: "κ < 0.2", val: "Concordancia leve (casi al azar)." },
+        { label: "0.2 – 0.4", val: "Concordancia aceptable." },
+        { label: "0.4 – 0.6", val: "Concordancia moderada." },
+        { label: "0.6 – 0.8", val: "Concordancia sustancial." },
+        { label: "0.8 – 1.0", val: "Concordancia casi perfecta." }
+      ],
+      python: `<span class="im">from</span> sklearn.metrics <span class="im">import</span> cohen_kappa_score
+
+<span class="cm"># Clasificaciones de evaluador 1 y evaluador 2</span>
+eval_1 = [<span class="str">'normal'</span>,<span class="str">'neumonía'</span>,<span class="str">'tumor'</span>,<span class="str">'normal'</span>,<span class="str">'tumor'</span>]
+eval_2 = [<span class="str">'normal'</span>,<span class="str">'neumonía'</span>,<span class="str">'normal'</span>,<span class="str">'normal'</span>,<span class="str">'tumor'</span>]
+
+kappa = <span class="fn">cohen_kappa_score</span>(eval_1, eval_2)
+<span class="fn">print</span>(<span class="str">f"κ = {kappa:.3f}"</span>)
+
+<span class="cm"># Kappa ponderado (para categorías ordinales)</span>
+kappa_w = <span class="fn">cohen_kappa_score</span>(eval_1, eval_2, weights=<span class="str">'linear'</span>)`
+    },
+
+    /* ── ICC ── */
+    icc: {
+      name: "Coeficiente de Correlación Intraclase (ICC)",
+      desc: "Cuantifica la confiabilidad o reproducibilidad de mediciones continuas realizadas por múltiples evaluadores o en múltiples ocasiones sobre los mismos sujetos.",
+      formula: "ICC = (MS_between − MS_error) / (MS_between + (k-1)·MS_error)",
+      cuando: "Cuando dos o más evaluadores miden la misma variable continua en los mismos sujetos y deseas saber qué tan reproducibles son las mediciones (confiabilidad inter-evaluador o test-retest).",
+      cuando_no: "No usar para variables categóricas (usar Kappa de Cohen). No usar si los evaluadores son una muestra aleatoria y no específica (cambiaría la fórmula del modelo ICC).",
+      supuestos: [
+        { label: "Normalidad", text: "Los datos deben ser aproximadamente normales." },
+        { label: "Sin interacción", text: "El efecto de cada evaluador debe ser constante en todos los sujetos (algunos modelos ICC lo contemplan)." },
+        { label: "Mediciones pareadas", text: "Todos los sujetos deben ser medidos por todos los evaluadores (o al menos por los mismos subconjuntos)." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Tres fisioterapeutas miden el ángulo de movilidad de cadera en 20 pacientes usando un goniómetro. Se calcula el ICC para determinar si el instrumento y los evaluadores son confiables.",
+      interpretacion: [
+        { label: "ICC < 0.5", val: "Confiabilidad pobre." },
+        { label: "0.5 – 0.75", val: "Confiabilidad moderada." },
+        { label: "0.75 – 0.9", val: "Confiabilidad buena." },
+        { label: "ICC > 0.9", val: "Confiabilidad excelente." }
+      ],
+      python: `<span class="im">import</span> pingouin <span class="kw">as</span> pg  <span class="cm"># pip install pingouin</span>
+<span class="im">import</span> pandas <span class="kw">as</span> pd
+
+<span class="cm"># Datos: cada columna = un evaluador, cada fila = un sujeto</span>
+df = pd.<span class="fn">DataFrame</span>({
+    <span class="str">'eval1'</span>: [<span class="nm">45</span>,<span class="nm">52</span>,<span class="nm">60</span>,<span class="nm">48</span>,<span class="nm">55</span>],
+    <span class="str">'eval2'</span>: [<span class="nm">44</span>,<span class="nm">50</span>,<span class="nm">61</span>,<span class="nm">47</span>,<span class="nm">56</span>],
+    <span class="str">'eval3'</span>: [<span class="nm">46</span>,<span class="nm">53</span>,<span class="nm">59</span>,<span class="nm">49</span>,<span class="nm">54</span>]
+})
+
+icc_result = pg.<span class="fn">intraclass_corr</span>(
+    data = df.<span class="fn">melt</span>(var_name=<span class="str">'rater'</span>, value_name=<span class="str">'score'</span>).<span class="fn">assign</span>(
+               target=df.<span class="fn">index</span>.<span class="fn">repeat</span>(<span class="nm">3</span>).<span class="fn">tolist</span>()),
+    targets=<span class="str">'target'</span>, raters=<span class="str">'rater'</span>, ratings=<span class="str">'score'</span>
+)
+<span class="fn">print</span>(icc_result)`
+    },
+
+    /* ── Shapiro-Wilk ── */
+    shapiro: {
+      name: "Shapiro-Wilk / Kolmogorov-Smirnov",
+      desc: "Pruebas de bondad de ajuste que evalúan si una muestra de datos proviene de una distribución normal. Son el paso previo a elegir entre pruebas paramétricas y no paramétricas.",
+      formula: "W = (Σ aᵢ x₍ᵢ₎)² / Σ(xᵢ − x̄)²",
+      cuando: "Antes de aplicar cualquier prueba paramétrica (t de Student, ANOVA, Pearson). Shapiro-Wilk es preferible con n ≤ 50; Kolmogorov-Smirnov para muestras grandes.",
+      cuando_no: "Una prueba de normalidad fallida no descarta automáticamente las pruebas paramétricas: con n > 30, el Teorema Central del Límite las hace robustas. La decisión debe complementarse con gráficos Q-Q.",
+      supuestos: [
+        { label: "H₀", text: "La muestra proviene de una distribución normal." },
+        { label: "H₁", text: "La muestra NO proviene de una distribución normal." }
+      ],
+      ejemplo: "<strong>Ejemplo:</strong> Antes de aplicar ANOVA para comparar grupos de pacientes, se verifica la normalidad de cada grupo con Shapiro-Wilk. Si algún grupo falla (p < 0.05), se evalúa usar Kruskal-Wallis.",
+      interpretacion: [
+        { label: "p > 0.05", val: "No se rechaza normalidad. Los datos son compatibles con distribución normal." },
+        { label: "p < 0.05", val: "Se rechaza normalidad. Considerar pruebas no paramétricas o transformar los datos." },
+        { label: "Q-Q plot", val: "Complementar siempre con gráfico cuantil-cuantil. Puntos sobre la diagonal = normalidad." }
+      ],
+      python: `<span class="im">from</span> scipy <span class="im">import</span> stats
+<span class="im">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+
+datos = [<span class="nm">23</span>, <span class="nm">25</span>, <span class="nm">22</span>, <span class="nm">28</span>, <span class="nm">26</span>, <span class="nm">24</span>, <span class="nm">27</span>, <span class="nm">25</span>]
+
+<span class="cm"># Shapiro-Wilk (recomendado para n ≤ 50)</span>
+w_stat, p_sw = stats.<span class="fn">shapiro</span>(datos)
+<span class="fn">print</span>(<span class="str">f"Shapiro-Wilk: W={w_stat:.3f}, p={p_sw:.4f}"</span>)
+
+<span class="cm"># Kolmogorov-Smirnov (para muestras grandes)</span>
+_, p_ks = stats.<span class="fn">kstest</span>(datos, <span class="str">'norm'</span>,
+           args=(stats.<span class="fn">mean</span>(datos), stats.<span class="fn">sem</span>(datos)))
+<span class="fn">print</span>(<span class="str">f"K-S: p={p_ks:.4f}"</span>)
+
+<span class="cm"># Gráfico Q-Q</span>
+stats.<span class="fn">probplot</span>(datos, dist=<span class="str">"norm"</span>, plot=plt)
+plt.<span class="fn">show</span>()`
+    }
+
+  }; // fin TESTS
+
+  /* ============================================================
+     SECCIÓN 2: ÁRBOL DE DECISIÓN
+     Cada nodo: tipo 'q' (pregunta) o 'r' (resultado → clave de TESTS)
+  ============================================================ */
+  const TREE = {
+    id: 'root',
+    type: 'q',
+    step: 1, totalSteps: 5,
+    text: '¿Qué deseas hacer con tus datos?',
+    hint: 'El objetivo principal de tu análisis determina la familia de pruebas a explorar.',
+    opts: [
+      { label: 'Comparar grupos',            icon: '⚖️', desc: 'Ver si hay diferencias entre conjuntos',   next: 'cmp_n' },
+      { label: 'Analizar relación',           icon: '🔗', desc: 'Explorar asociación entre variables',      next: 'rel_types' },
+      { label: 'Predecir una variable',       icon: '📈', desc: 'Estimar valores a partir de predictores',  next: 'pred_type' },
+      { label: 'Verificar normalidad primero',icon: '📐', desc: 'Paso previo a elegir prueba paramétrica',  next: 'r_shapiro' }
+    ]
+  };
+
+  const NODES = {
+
+    /* ── Rama COMPARAR ── */
+    cmp_n: {
+      id:'cmp_n', type:'q', step:2, totalSteps:5,
+      text: '¿Cuántos grupos deseas comparar?',
+      hint: 'Cuenta los grupos o condiciones que quieres contrastar.',
+      opts: [
+        { label:'1 grupo',    icon:'①', desc:'Comparar con valor de referencia',     next:'cmp_1g_var' },
+        { label:'2 grupos',   icon:'②', desc:'Dos muestras o condiciones',            next:'cmp_2g_rel' },
+        { label:'3 o más',   icon:'③', desc:'Múltiples grupos o condiciones',        next:'cmp_3g_rel' }
+      ]
+    },
+
+    /* 1 grupo */
+    cmp_1g_var: {
+      id:'cmp_1g_var', type:'q', step:3, totalSteps:5,
+      text: '¿Qué tipo de variable tienes?',
+      hint: '',
+      opts: [
+        { label:'Numérica (continua)', icon:'🔢', desc:'Peso, tiempo, temperatura…', next:'cmp_1g_param' },
+        { label:'Categórica',          icon:'🏷️', desc:'Proporciones, categorías',    next:'r_chi2' }
+      ]
+    },
+    cmp_1g_param: {
+      id:'cmp_1g_param', type:'q', step:4, totalSteps:5,
+      text: '¿Los datos siguen distribución normal?',
+      hint: '',
+      opts: [
+        { label:'Sí',           icon:'✔', desc:'Normalidad confirmada', next:'r_t_one' },
+        { label:'No / No sé',   icon:'✘', desc:'Sin normalidad o muestra pequeña', next:'r_wilcoxon_1' }
+      ]
+    },
+
+    /* 2 grupos */
+    cmp_2g_rel: {
+      id:'cmp_2g_rel', type:'q', step:3, totalSteps:5,
+      text: '¿Los grupos son independientes o relacionados?',
+      hint: 'Independientes = sujetos distintos. Relacionados = mismos sujetos en ambas condiciones.',
+      opts: [
+        { label:'Independientes',          icon:'↔', desc:'Sujetos distintos en cada grupo', next:'cmp_2gi_var' },
+        { label:'Relacionados / Pareados', icon:'🔄', desc:'Mismos sujetos, dos condiciones', next:'cmp_2gr_var' }
+      ]
+    },
+    cmp_2gi_var: {
+      id:'cmp_2gi_var', type:'q', step:4, totalSteps:5,
+      text: '¿Qué tipo de variable es la dependiente?',
+      hint: '',
+      opts: [
+        { label:'Numérica (continua)', icon:'🔢', desc:'', next:'cmp_2gi_param' },
+        { label:'Categórica',          icon:'🏷️', desc:'Proporciones, frecuencias', next:'r_chi2' }
+      ]
+    },
+    cmp_2gi_param: {
+      id:'cmp_2gi_param', type:'q', step:5, totalSteps:5,
+      text: '¿Los datos cumplen supuestos paramétricos (normalidad)?',
+      hint: 'Si no estás seguro, usa Shapiro-Wilk. Con n > 30 por grupo suele asumirse normalidad.',
+      opts: [
+        { label:'Sí',         icon:'✔', desc:'Normalidad confirmada',        next:'r_t_student' },
+        { label:'No / No sé', icon:'✘', desc:'No paramétrico o muestra pequeña', next:'r_mann_whitney' }
+      ]
+    },
+    cmp_2gr_var: {
+      id:'cmp_2gr_var', type:'q', step:4, totalSteps:5,
+      text: '¿Qué tipo de variable es la dependiente?',
+      hint: '',
+      opts: [
+        { label:'Numérica (continua)', icon:'🔢', desc:'', next:'cmp_2gr_param' },
+        { label:'Categórica',          icon:'🏷️', desc:'Proporciones, frecuencias', next:'r_chi2' }
+      ]
+    },
+    cmp_2gr_param: {
+      id:'cmp_2gr_param', type:'q', step:5, totalSteps:5,
+      text: '¿Los datos cumplen supuestos paramétricos?',
+      hint: 'Para t pareada, las diferencias entre pares deben ser normales.',
+      opts: [
+        { label:'Sí',         icon:'✔', desc:'Diferencias normales',        next:'r_t_paired' },
+        { label:'No / No sé', icon:'✘', desc:'Distribución desconocida',    next:'r_wilcoxon' }
+      ]
+    },
+
+    /* 3+ grupos */
+    cmp_3g_rel: {
+      id:'cmp_3g_rel', type:'q', step:3, totalSteps:5,
+      text: '¿Los grupos son independientes o relacionados?',
+      hint: '',
+      opts: [
+        { label:'Independientes',          icon:'↔', desc:'Grupos con sujetos distintos', next:'cmp_3gi_param' },
+        { label:'Relacionados (repetidas)',icon:'🔄', desc:'Mismos sujetos, múltiples condiciones', next:'cmp_3gr_param' },
+        { label:'Dos factores simultáneos',icon:'⊞', desc:'ANOVA con dos variables independientes', next:'r_anova_factorial' }
+      ]
+    },
+    cmp_3gi_param: {
+      id:'cmp_3gi_param', type:'q', step:4, totalSteps:5,
+      text: '¿Los datos cumplen supuestos paramétricos?',
+      hint: 'Verificar normalidad por grupo y homocedasticidad (Levene).',
+      opts: [
+        { label:'Sí',         icon:'✔', desc:'Normal y varianzas homogéneas', next:'r_anova' },
+        { label:'No / No sé', icon:'✘', desc:'No paramétrico o datos ordinales', next:'r_kruskal' }
+      ]
+    },
+    cmp_3gr_param: {
+      id:'cmp_3gr_param', type:'q', step:4, totalSteps:5,
+      text: '¿Los datos cumplen supuestos paramétricos?',
+      hint: 'Se requiere esfericidad (Mauchly). Si no, corregir con Greenhouse-Geisser.',
+      opts: [
+        { label:'Sí',         icon:'✔', desc:'Normalidad y esfericidad',     next:'r_anova_mr' },
+        { label:'No / No sé', icon:'✘', desc:'Datos ordinales o no normales', next:'r_friedman' }
+      ]
+    },
+
+    /* ── Rama RELACIÓN ── */
+    rel_types: {
+      id:'rel_types', type:'q', step:2, totalSteps:4,
+      text: '¿Qué tipo de variables deseas relacionar?',
+      hint: 'Identifica la escala de medición de ambas variables.',
+      opts: [
+        { label:'Numérica ↔ Numérica',  icon:'🔢', desc:'Ambas continuas o discretas',    next:'rel_num_param' },
+        { label:'Categórica ↔ Categórica', icon:'🏷️', desc:'Variables nominales u ordinales', next:'r_chi2' },
+        { label:'Concordancia / Confiabilidad', icon:'🎯', desc:'Dos evaluadores o mediciones repetidas', next:'rel_agreement' }
+      ]
+    },
+    rel_num_param: {
+      id:'rel_num_param', type:'q', step:3, totalSteps:4,
+      text: '¿Las variables siguen distribución normal y la relación es lineal?',
+      hint: 'Usa un gráfico de dispersión para evaluar si la tendencia es lineal.',
+      opts: [
+        { label:'Sí, distribución normal y lineal', icon:'✔', desc:'', next:'r_pearson' },
+        { label:'No / Datos ordinales o no lineal',  icon:'✘', desc:'', next:'r_spearman' }
+      ]
+    },
+    rel_agreement: {
+      id:'rel_agreement', type:'q', step:3, totalSteps:4,
+      text: '¿Qué tipo de variable están midiendo los evaluadores?',
+      hint: '',
+      opts: [
+        { label:'Categórica (diagnóstico, clasificación)', icon:'🏷️', desc:'Acuerdo entre categorías', next:'r_kappa' },
+        { label:'Continua (medición numérica)',            icon:'🔢', desc:'Reproducibilidad de medidas', next:'r_icc' }
+      ]
+    },
+
+    /* ── Rama PREDICCIÓN ── */
+    pred_type: {
+      id:'pred_type', type:'q', step:2, totalSteps:3,
+      text: '¿Qué tipo de variable deseas predecir?',
+      hint: 'La naturaleza de la variable de respuesta define el modelo de regresión.',
+      opts: [
+        { label:'Variable continua',   icon:'📏', desc:'Salario, temperatura, puntuación…', next:'r_reg_lineal' },
+        { label:'Variable categórica', icon:'🎯', desc:'Sí/No, grupo, clase, diagnóstico…', next:'r_reg_logistica' },
+        { label:'Tiempo hasta evento', icon:'⏱️', desc:'Supervivencia, tiempo de fallo',     next:'r_kaplan' }
+      ]
+    },
+
+    /* ── NODOS RESULTADO (tipo 'r') ── */
+    r_t_student:       { type:'r', key:'t_student' },
+    r_mann_whitney:    { type:'r', key:'mann_whitney' },
+    r_t_paired:        { type:'r', key:'t_paired' },
+    r_wilcoxon:        { type:'r', key:'wilcoxon' },
+    r_wilcoxon_1:      { type:'r', key:'wilcoxon_1' },
+    r_t_one:           { type:'r', key:'t_one' },
+    r_anova:           { type:'r', key:'anova' },
+    r_kruskal:         { type:'r', key:'kruskal' },
+    r_anova_mr:        { type:'r', key:'anova_mr' },
+    r_friedman:        { type:'r', key:'friedman' },
+    r_anova_factorial: { type:'r', key:'anova_factorial' },
+    r_chi2:            { type:'r', key:'chi2' },
+    r_pearson:         { type:'r', key:'pearson' },
+    r_spearman:        { type:'r', key:'spearman' },
+    r_reg_lineal:      { type:'r', key:'reg_lineal' },
+    r_reg_logistica:   { type:'r', key:'reg_logistica' },
+    r_kaplan:          { type:'r', key:'kaplan' },
+    r_kappa:           { type:'r', key:'kappa' },
+    r_icc:             { type:'r', key:'icc' },
+    r_shapiro:         { type:'r', key:'shapiro' }
+  };
+
+  /* ============================================================
+     SECCIÓN 3: ESTADO Y NAVEGACIÓN
+  ============================================================ */
+  let navHistory   = [];   // pila de nodos (IDs o 'root')
+  let selections   = [];   // etiquetas elegidas
+  let currentNode  = TREE;
+
+  /* ---- Actualizar barra de progreso ---- */
+  function updateProgress(step, total) {
+    const pct = total ? Math.round((step / total) * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent  = pct + ' %';
+    document.getElementById('progressLabel').textContent = step ? `Paso ${step} de ${total}` : 'Inicio';
+  }
+
+  /* ---- Actualizar breadcrumb ---- */
+  function updateBreadcrumb() {
+    const bc = document.getElementById('breadcrumb');
+    bc.innerHTML = '';
+    selections.forEach((sel, i) => {
+      const s = document.createElement('span');
+      s.className = 'crumb' + (i === selections.length - 1 ? ' last' : '');
+      s.textContent = sel;
+      bc.appendChild(s);
+    });
+  }
+
+  /* ---- Seleccionar opción ---- */
+  function choose(opt) {
+    navHistory.push(currentNode.id || 'root');
+    selections.push(opt.label);
+    updateBreadcrumb();
+
+    const nextId   = opt.next;
+    const nextNode = nextId === 'root' ? TREE : NODES[nextId];
+
+    if (!nextNode) { console.error('Nodo no encontrado:', nextId); return; }
+
+    currentNode = nextNode;
+
+    if (nextNode.type === 'r') {
+      renderResult(TESTS[nextNode.key]);
+      updateProgress(nextNode.totalSteps || 5, nextNode.totalSteps || 5);
+    } else {
+      renderQuestion(nextNode);
+      updateProgress(nextNode.step, nextNode.totalSteps);
+    }
+  }
+
+  /* ---- Reiniciar ---- */
+  function restart() {
+    navHistory  = [];
+    selections  = [];
+    currentNode = TREE;
+    updateBreadcrumb();
+    updateProgress(0, 0);
+    renderQuestion(TREE);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ============================================================
+     SECCIÓN 4: RENDER DE PREGUNTA
+  ============================================================ */
+  function renderQuestion(node) {
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'step-card';
+
+    card.innerHTML = `
+      <div class="step-label">Paso ${node.step} de ${node.totalSteps}</div>
+      <div class="step-question">${node.text}</div>
+      ${node.hint ? `<div class="step-hint">${node.hint}</div>` : ''}
+      <div class="options-grid" id="opts"></div>
+    `;
+
+    app.appendChild(card);
+
+    const grid = card.querySelector('#opts');
+    node.opts.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.innerHTML = `
+        <span class="opt-icon">${opt.icon}</span>
+        <span class="opt-content">
+          <strong>${opt.label}</strong>
+          ${opt.desc ? `<small>${opt.desc}</small>` : ''}
+        </span>
+      `;
+      btn.addEventListener('click', () => choose(opt));
+      grid.appendChild(btn);
+    });
+  }
+
+  /* ============================================================
+     SECCIÓN 5: RENDER DE RESULTADO
+  ============================================================ */
+  function renderResult(test) {
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+
+    /* Acordeones de contenido */
+    const sections = [
+      {
+        id: 'cuando',
+        icon: '✅', bg: '#e8f5e9',
+        title: '¿Cuándo usarla?',
+        html: `<p class="prose">${test.cuando}</p>`
+      },
+      {
+        id: 'cuando_no',
+        icon: '⚠️', bg: '#fff3e0',
+        title: '¿Cuándo NO usarla?',
+        html: `<div class="warn-box">${test.cuando_no}</div>`
+      },
+      {
+        id: 'supuestos',
+        icon: '📋', bg: '#e8eaf6',
+        title: 'Supuestos (en lenguaje simple)',
+        html: `<div class="assumption-list">${
+          test.supuestos.map((s, i) => `
+            <div class="assumption-item">
+              <div class="assumption-dot">${i+1}</div>
+              <div class="assumption-text"><strong>${s.label}:</strong> ${s.text}</div>
+            </div>`).join('')
+        }</div>`
+      },
+      {
+        id: 'ejemplo',
+        icon: '📝', bg: '#f3e5f5',
+        title: 'Ejemplo práctico',
+        html: `<div class="example-box"><p>${test.ejemplo}</p></div>`
+      },
+      {
+        id: 'interp',
+        icon: '🔍', bg: '#e0f2f1',
+        title: 'Cómo interpretar el resultado',
+        html: `<div class="interp-grid">${
+          test.interpretacion.map(i => `
+            <div class="interp-item">
+              <div class="interp-label">${i.label}</div>
+              <div class="interp-value">${i.val}</div>
+            </div>`).join('')
+        }</div>`
+      },
+      {
+        id: 'python',
+        icon: '🐍', bg: '#e8f5e9',
+        title: 'Implementación en Python',
+        html: `<div class="code-block"><span class="code-lang">Python</span><pre>${test.python}</pre></div>`
+      }
+    ];
+
+    const accordionsHTML = sections.map(s => `
+      <div class="accordion" id="acc-${s.id}">
+        <div class="accordion-header" onclick="toggleAccordion('acc-${s.id}')">
+          <div class="accordion-header-left">
+            <div class="accordion-icon-wrap" style="background:${s.bg}">${s.icon}</div>
+            <span class="accordion-title">${s.title}</span>
+          </div>
+          <svg class="accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+        <div class="accordion-body">
+          <div class="accordion-inner">${s.html}</div>
+        </div>
+      </div>
+    `).join('');
+
+    card.innerHTML = `
+      <!-- HERO -->
+      <div class="result-hero">
+        <div class="result-hero-badge">Prueba recomendada</div>
+        <h2>${test.name}</h2>
+        <p>${test.desc}</p>
+        ${test.formula ? `<div class="result-formula">${test.formula}</div>` : ''}
+      </div>
+
+      <!-- ACORDEONES -->
+      <div class="result-body">
+        ${accordionsHTML}
+      </div>
+
+      <div class="result-divider"></div>
+
+      <!-- FOOTER -->
+      <div class="result-footer">
+        <p>Los resultados son orientativos — consulta con un estadístico para casos complejos.</p>
+        <button class="restart-cta" onclick="restart()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 .49-3.51"></path>
+          </svg>
+          Nuevo análisis
+        </button>
+      </div>
+    `;
+
+    app.appendChild(card);
+
+    /* Abrir primer acordeón automáticamente */
+    setTimeout(() => toggleAccordion('acc-cuando'), 200);
+  }
+
+  /* ============================================================
+     SECCIÓN 6: ACORDEÓN
+  ============================================================ */
+  function toggleAccordion(id) {
+    const acc = document.getElementById(id);
+    if (!acc) return;
+    acc.classList.toggle('open');
+  }
+
+  /* ============================================================
+     ARRANQUE
+  ============================================================ */
+  renderQuestion(TREE);
+  </script>
+</body>
+</html>
