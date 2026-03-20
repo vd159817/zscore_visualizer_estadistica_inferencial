@@ -663,9 +663,174 @@
       font-weight: 300;
       line-height: 1.7;
     }
+
+    /* ============================================================
+       NAVBAR + HAMBURGUESA — mismo sistema que zscore-visualizer
+    ============================================================ */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(247,246,242,0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      font-family: 'Libre Baskerville', serif;
+      font-style: italic;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+
+    .nav-burger {
+      width: 36px; height: 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: border-color var(--t), background var(--t);
+    }
+    .nav-burger:hover {
+      border-color: var(--accent);
+      background: var(--accent-3);
+    }
+
+    .b-line {
+      width: 15px; height: 1.5px;
+      background: var(--ink-3);
+      border-radius: 2px;
+      transition: transform var(--t), opacity var(--t), background var(--t);
+      transform-origin: center;
+    }
+    .nav-burger:hover .b-line { background: var(--accent); }
+    .nav-burger.open .b-line:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+    .nav-burger.open .b-line:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .nav-burger.open .b-line:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+    .nav-menu {
+      position: fixed;
+      top: 54px; right: 0;
+      width: 236px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 0 var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 8px;
+      transform: translateY(-6px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform var(--t), opacity var(--t);
+      z-index: 99;
+    }
+    .nav-menu.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      padding: 8px 12px 5px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: var(--ink-2);
+      font-size: 13px;
+      font-weight: 400;
+      transition: background var(--t), color var(--t);
+      border: 1px solid transparent;
+    }
+    .nav-item:hover { background: var(--surface-2); color: var(--ink); }
+    .nav-item.current {
+      background: var(--accent-3);
+      color: var(--accent);
+      border-color: var(--accent-2);
+    }
+
+    .nav-item-icon {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 500;
+      flex-shrink: 0;
+      color: var(--ink-2);
+    }
+    .nav-item.current .nav-item-icon {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .nav-sep { height: 1px; background: var(--border); margin: 5px 0; }
+
+    .nav-overlay {
+      position: fixed; inset: 0;
+      z-index: 98; display: none;
+    }
+    .nav-overlay.open { display: block; }
+
+    /* Compensar el navbar fijo */
+    body { padding-top: 78px; }
   </style>
 </head>
 <body>
+
+  <!-- ============================================================
+       NAVBAR
+  ============================================================ -->
+  <nav class="navbar">
+    <a class="nav-brand" href="#">StatTools</a>
+    <button class="nav-burger" id="navBurger" aria-label="Menú" aria-expanded="false">
+      <span class="b-line"></span>
+      <span class="b-line"></span>
+      <span class="b-line"></span>
+    </button>
+  </nav>
+
+  <div class="nav-overlay" id="navOverlay"></div>
+
+  <div class="nav-menu" id="navMenu" role="menu">
+    <div class="nav-section-label">Herramientas</div>
+    <a class="nav-item" href="zscore-visualizer.html" onclick="closeMenu()">
+      <span class="nav-item-icon">z</span>
+      Z-Score Calc
+    </a>
+    <div class="nav-sep"></div>
+    <a class="nav-item current" href="#" onclick="closeMenu()">
+      <span class="nav-item-icon">🌿</span>
+      Árbol Estadístico
+    </a>
+  </div>
 
   <!-- ============================================================
        CABECERA
@@ -1809,6 +1974,32 @@ plt.<span class="fn">show</span>()`
      ARRANQUE
   ============================================================ */
   renderQuestion(TREE);
+
+  /* ============================================================
+     HAMBURGUESA — mismo sistema que zscore-visualizer
+  ============================================================ */
+  const burger  = document.getElementById('navBurger');
+  const navMenu = document.getElementById('navMenu');
+  const overlay = document.getElementById('navOverlay');
+
+  function openMenu() {
+    burger.classList.add('open');
+    navMenu.classList.add('open');
+    overlay.classList.add('open');
+    burger.setAttribute('aria-expanded', 'true');
+  }
+  function closeMenu() {
+    burger.classList.remove('open');
+    navMenu.classList.remove('open');
+    overlay.classList.remove('open');
+    burger.setAttribute('aria-expanded', 'false');
+  }
+
+  burger.addEventListener('click', () =>
+    navMenu.classList.contains('open') ? closeMenu() : openMenu()
+  );
+  overlay.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
   </script>
 </body>
 </html>
